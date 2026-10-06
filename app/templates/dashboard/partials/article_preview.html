@@ -1,0 +1,578 @@
+{#
+  Apple macOS HIG Split-View Article Inspector & Human-in-the-Loop Panel.
+  Rendered into #article-modal overlay container.
+#}
+{% if error %}
+  <div class="flex h-full items-center justify-center p-6">
+    <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-rose-800 shadow-lg">
+      <div class="font-medium text-[14px]">{{ error }}</div>
+      <button onclick="document.getElementById('article-modal').classList.add('hidden'); document.getElementById('article-modal').innerHTML=''"
+              class="mt-2 text-xs font-medium underline text-rose-900">Закрыть окно</button>
+    </div>
+  </div>
+{% else %}
+<div class="mx-auto flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-black/[0.08] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.18)]"
+     onclick="event.stopPropagation()">
+
+  {# Window Header #}
+  <header class="flex items-center justify-between border-b border-black/[0.06] bg-[#FAFAFA] px-6 py-3.5">
+    <div class="flex items-center gap-3 min-w-0 pr-4">
+      <span class="text-xs font-semibold text-mac-secondary uppercase tracking-wider">Инспектор материала</span>
+      <span class="chip chip-outline text-[11px] font-medium whitespace-nowrap">
+        {{ category_title(article.category) }}
+      </span>
+      <h2 class="truncate text-[15px] font-semibold text-mac-ink">
+        {{ article.title }}
+      </h2>
+    </div>
+    
+    <div class="flex items-center gap-2 shrink-0">
+      {% if article.wp_post_id %}
+        <a href="https://svodka.press/?p={{ article.wp_post_id }}" target="_blank"
+           class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
+          🌐 Сайт ↗
+        </a>
+      {% endif %}
+      {% set dzen_st = article.platform_statuses.get('dzen') if article.platform_statuses else None %}
+      {% if dzen_st and dzen_st.get('url') %}
+        <a href="{{ dzen_st.url }}" target="_blank"
+           class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 border border-amber-300 hover:bg-amber-100">
+          📱 Дзен ↗
+        </a>
+      {% endif %}
+      {% set vk_st = article.platform_statuses.get('vk') if article.platform_statuses else None %}
+      {% if vk_st and vk_st.get('url') %}
+        <a href="{{ vk_st.url }}" target="_blank"
+           class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-300 hover:bg-indigo-100">
+          💬 VK ↗
+        </a>
+      {% endif %}
+      {% set tg_st = article.platform_statuses.get('tg') if article.platform_statuses else None %}
+      {% if tg_st and tg_st.get('url') %}
+        <a href="{{ tg_st.url }}" target="_blank"
+           class="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-100">
+          📢 TG ↗
+        </a>
+      {% endif %}
+
+      {% if article.status == 'media_ready' %}
+        <span class="mac-pill mac-pill-good">
+          <span class="w-1.5 h-1.5 rounded-full bg-mac-emerald animate-pulse"></span>
+          Ожидает решения
+        </span>
+      {% elif article.status == 'wp_published' or article.status == 'distributed' %}
+        <span class="mac-pill mac-pill-blue">Опубликован</span>
+      {% else %}
+        <span class="mac-pill mac-pill-neutral">{{ article.status.value }}</span>
+      {% endif %}
+
+      <button onclick="document.getElementById('article-modal').classList.add('hidden'); document.getElementById('article-modal').innerHTML=''"
+              aria-label="Закрыть"
+              class="flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] text-[16px] text-mac-secondary hover:bg-black/[0.1] hover:text-mac-ink transition-colors">
+        ✕
+      </button>
+    </div>
+  </header>
+
+  {# Notifications #}
+  {% if saved %}
+    <div role="status" class="border-b border-emerald-200 bg-emerald-50 px-6 py-2.5 text-xs font-medium text-emerald-800 flex items-center gap-2">
+      <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>
+      Изменения сохранены.
+    </div>
+  {% endif %}
+  {% if approval_notice %}
+    <div role="status" class="border-b border-blue-200 bg-blue-50 px-6 py-2.5 text-xs font-medium text-blue-900 flex items-center gap-2">
+      <svg class="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+      {{ approval_notice }}
+    </div>
+  {% endif %}
+  {% if rewrite_notice %}
+    <div role="status" class="border-b border-purple-200 bg-purple-50 px-6 py-2.5 text-xs font-medium text-purple-900 flex items-center gap-2">
+      <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+      {{ rewrite_notice }}
+    </div>
+  {% endif %}
+  {% if media_notice %}
+    <div role="status" class="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-900 flex items-center gap-2">
+      <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+      {{ media_notice }}
+    </div>
+  {% endif %}
+
+  {# Split View Workspace #}
+  <div class="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+    
+    {# ---- Left Pane (65%): Content & Evidence Inspector with Tabs ---- #}
+    <div class="flex flex-1 flex-col overflow-hidden border-b border-black/[0.06] md:border-b-0 md:border-r">
+      
+      {# Apple Tab Navigation #}
+      <div class="flex flex-wrap border-b border-black/[0.06] bg-[#FAFAFA] px-4 pt-2 gap-1 text-[12.5px] font-medium" id="modal-tabs">
+        <button type="button" onclick="switchModalTab('tab-article')" id="btn-tab-article"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-mac-blue text-mac-ink font-semibold">
+          🌐 Сайт (WP)
+        </button>
+        <button type="button" onclick="switchModalTab('tab-dzen')" id="btn-tab-dzen"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          📱 Дзен
+        </button>
+        <button type="button" onclick="switchModalTab('tab-tg')" id="btn-tab-tg"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          📢 Telegram
+        </button>
+        <button type="button" onclick="switchModalTab('tab-vk')" id="btn-tab-vk"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          💬 ВКонтакте
+        </button>
+        <button type="button" onclick="switchModalTab('tab-sources')" id="btn-tab-sources"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          Источники ({{ raw_items | length }})
+        </button>
+        <button type="button" onclick="switchModalTab('tab-quality')" id="btn-tab-quality"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          Anti-Slop
+        </button>
+        <button type="button" onclick="switchModalTab('tab-media')" id="btn-tab-media"
+                class="modal-tab-btn px-3 py-1.5 rounded-t-lg border-b-2 border-transparent text-mac-secondary hover:text-mac-ink">
+          Медиа
+        </button>
+      </div>
+
+      {# Tab Contents Container #}
+      <div class="flex-1 overflow-y-auto p-6">
+        
+        {# TAB 1: Article Body (Website) #}
+        <div id="tab-article" class="modal-tab-content block">
+          <div class="mb-4 overflow-hidden rounded-2xl border border-black/[0.06] shadow-sm">
+            <img src="/api/ui/articles/{{ article.id }}/thumbnail" alt=""
+                 class="h-64 w-full object-cover bg-black/[0.03]">
+          </div>
+          <div class="prose max-w-none text-[14px] leading-relaxed text-mac-ink
+                      [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-[18px] [&_h2]:font-semibold [&_h2]:text-mac-ink
+                      [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-mac-ink
+                      [&_p]:mb-4 [&_li]:ml-4 [&_ul]:list-disc [&_ul]:mb-4 [&_blockquote]:border-l-2 [&_blockquote]:border-mac-blue [&_blockquote]:pl-4 [&_blockquote]:italic">
+            {{ article.content_html | safe }}
+          </div>
+        </div>
+
+        {# TAB: Dzen Preview #}
+        <div id="tab-dzen" class="modal-tab-content hidden space-y-4">
+          <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-3 flex items-center justify-between text-xs">
+            <span class="font-medium text-amber-900">📱 Предпросмотр публикации в Яндекс Дзен (включая промо-атрибуцию)</span>
+            {% set dzen_url = article.platform_statuses.get('dzen', {}).get('url') if article.platform_statuses else None %}
+            {% if dzen_url %}
+              <a href="{{ dzen_url }}" target="_blank" class="font-semibold text-amber-800 underline">Открыть опубликованную в Дзене ↗</a>
+            {% endif %}
+          </div>
+          <div class="max-w-2xl mx-auto rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm space-y-4">
+            <div class="flex items-center gap-3 pb-3 border-b border-black/[0.06]">
+              <div class="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">С</div>
+              <div>
+                <div class="font-semibold text-sm text-mac-ink">SvodkaPress</div>
+                <div class="text-[11px] text-mac-secondary">Яндекс Дзен · Статья</div>
+              </div>
+            </div>
+            <h1 class="text-xl font-bold text-mac-ink leading-tight">{{ article.title }}</h1>
+            <div class="overflow-hidden rounded-xl border border-black/[0.06]">
+              <img src="/api/ui/articles/{{ article.id }}/thumbnail" alt=""
+                   class="h-60 w-full object-cover bg-black/[0.02]">
+            </div>
+            <div class="prose max-w-none text-[13.5px] leading-relaxed text-mac-ink">
+              {{ article.content_html | safe }}
+            </div>
+          </div>
+        </div>
+
+        {# TAB: Telegram Preview #}
+        <div id="tab-tg" class="modal-tab-content hidden space-y-4">
+          <div class="rounded-2xl border border-sky-200 bg-sky-50/50 p-3 flex items-center justify-between text-xs">
+            <span class="font-medium text-sky-900">📢 Предпросмотр поста в Telegram-канале @svodka_press</span>
+            {% set tg_url = article.platform_statuses.get('tg', {}).get('url') if article.platform_statuses else None %}
+            {% if tg_url %}
+              <a href="{{ tg_url }}" target="_blank" class="font-semibold text-sky-800 underline">Открыть пост в Telegram ↗</a>
+            {% endif %}
+          </div>
+          <div class="max-w-md mx-auto rounded-3xl bg-[#7289DA]/10 p-4">
+            <div class="rounded-2xl bg-white p-4 shadow-sm space-y-3 border border-black/[0.04]">
+              <div class="overflow-hidden rounded-xl">
+                <img src="/api/ui/articles/{{ article.id }}/thumbnail" alt=""
+                     class="h-48 w-full object-cover">
+              </div>
+              <div class="text-[13.5px] leading-relaxed text-mac-ink">
+                <p class="font-bold text-[15px] mb-2">{{ article.title }}</p>
+                <p class="text-mac-secondary mb-3">{{ article.seo_description or (article.content_html | striptags)[:180] }}…</p>
+                <p class="text-mac-blue text-[12px] font-medium">
+                  👉 Читать полностью: <span class="underline">https://svodka.press/?p={{ article.wp_post_id or article.id }}</span>
+                </p>
+                <p class="mt-2 text-mac-muted text-[11px]">
+                  #{{ article.category }} #новости #svodkapress
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# TAB: VK Preview #}
+        <div id="tab-vk" class="modal-tab-content hidden space-y-4">
+          <div class="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3 flex items-center justify-between text-xs">
+            <span class="font-medium text-indigo-900">💬 Предпросмотр записи на стене ВКонтакте</span>
+            {% set vk_url = article.platform_statuses.get('vk', {}).get('url') if article.platform_statuses else None %}
+            {% if vk_url %}
+              <a href="{{ vk_url }}" target="_blank" class="font-semibold text-indigo-800 underline">Открыть запись в VK ↗</a>
+            {% endif %}
+          </div>
+          <div class="max-w-lg mx-auto rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-[#0077FF] text-white flex items-center justify-center font-bold text-sm">VK</div>
+              <div>
+                <div class="font-semibold text-sm text-mac-ink">SvodkaPress</div>
+                <div class="text-[11px] text-mac-secondary">сегодня в {{ article.created_at.strftime('%H:%M') if article.created_at else '12:00' }}</div>
+              </div>
+            </div>
+            <p class="text-[13.5px] font-semibold text-mac-ink">{{ article.title }}</p>
+            <p class="text-[13px] text-mac-secondary leading-relaxed">{{ article.seo_description or (article.content_html | striptags)[:200] }}…</p>
+            <div class="overflow-hidden rounded-xl border border-black/[0.06]">
+              <img src="/api/ui/articles/{{ article.id }}/thumbnail" alt=""
+                   class="h-56 w-full object-cover">
+            </div>
+            <div class="pt-2 border-t border-black/[0.04] text-[12px] text-mac-blue">
+              🔗 <span class="underline">https://svodka.press/?p={{ article.wp_post_id or article.id }}</span>
+            </div>
+          </div>
+        </div>
+
+
+        {# TAB 2: Sources & Clustered Facts #}
+        <div id="tab-sources" class="modal-tab-content hidden space-y-4">
+          <div class="rounded-2xl border border-black/[0.06] bg-[#FAFAFA] p-4 mb-4">
+            <h4 class="text-xs font-semibold text-mac-secondary uppercase tracking-wider mb-2">Кластер инфоповода</h4>
+            <div class="text-[13.5px] font-medium text-mac-ink">{{ cluster.title if cluster else 'Информация о кластере отсутствует' }}</div>
+          </div>
+
+          <h4 class="text-xs font-semibold text-mac-secondary uppercase tracking-wider">Собранные первоисточники из Telegram:</h4>
+          {% if raw_items %}
+            <div class="space-y-3">
+              {% for item in raw_items %}
+                <div class="rounded-xl border border-black/[0.06] p-3.5 hover:bg-black/[0.01] transition-colors">
+                  <div class="flex items-center justify-between text-[11.5px] text-mac-secondary mb-1.5">
+                    <span class="font-semibold text-mac-ink">
+                      {{ sources_map.get(item.source_id, 'Telegram-канал') }}
+                    </span>
+                    <span class="mono">{{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '' }}</span>
+                  </div>
+                  <p class="text-[12.5px] text-mac-secondary leading-snug line-clamp-3">
+                    {{ item.raw_text or item.text_content }}
+                  </p>
+                  {% if item.url %}
+                    <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-mac-blue hover:underline">
+                      Открыть в Telegram →
+                    </a>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-xs text-mac-muted">Связанные исходные сообщения не найдены.</p>
+          {% endif %}
+        </div>
+
+        {# TAB 3: Quality & Anti-Slop Audit #}
+        <div id="tab-quality" class="modal-tab-content hidden space-y-4">
+          <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5">
+            <div class="flex items-center gap-2 text-emerald-800 font-semibold text-[14px]">
+              <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              Anti-Slop фильтрация пройдена
+            </div>
+            <p class="text-xs text-emerald-900/80 mt-1 leading-relaxed">
+              Текст статьи валидирован по 39 правилам стоп-листа (29 жестких запретов и 10 эвристических правок). Канцелярит, генеративные клише и вводные штампы устранены.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="card p-3">
+              <span class="text-mac-secondary">Объем статьи:</span>
+              <div class="text-[15px] font-semibold text-mac-ink mt-0.5">{{ article.content_html | striptags | length }} знаков</div>
+            </div>
+            <div class="card p-3">
+              <span class="text-mac-secondary">Расчетное время чтения:</span>
+              <div class="text-[15px] font-semibold text-mac-ink mt-0.5">~{{ ((article.content_html | striptags | length) / 900) | round(1) }} мин</div>
+            </div>
+          </div>
+
+          {% if article.seo_keywords %}
+            <div class="card p-4">
+              <span class="text-xs font-semibold text-mac-secondary uppercase tracking-wider block mb-2">Органические ключевые слова (SEO):</span>
+              <div class="flex flex-wrap gap-1.5">
+                {% for kw in article.seo_keywords %}
+                  <span class="chip chip-outline text-[11px]">{{ kw }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        {# TAB 4: Media & Watermark #}
+        <div id="tab-media" class="modal-tab-content hidden space-y-4">
+          <div class="card p-4">
+            <h4 class="text-xs font-semibold text-mac-secondary uppercase tracking-wider mb-3">Главная обложка публикации</h4>
+            <div class="flex flex-col sm:flex-row gap-4 items-start">
+              <img src="/api/ui/articles/{{ article.id }}/thumbnail" alt=""
+                   class="w-full sm:w-64 h-40 rounded-2xl border border-black/[0.08] object-cover shadow-sm bg-black/[0.02]">
+              
+              <div class="flex-1 space-y-3">
+                <div>
+                  <span class="text-xs text-mac-secondary block mb-1">Статус анализа водяных знаков (OCR):</span>
+                  <span class="mac-pill mac-pill-good">
+                    Водяной знак не обнаружен / проверено
+                  </span>
+                </div>
+
+                {# Watermark Override Action #}
+                <form hx-post="/api/ui/articles/{{ article.id }}/toggle_watermark"
+                      hx-target="#article-modal"
+                      hx-swap="innerHTML"
+                      class="pt-2">
+                  {% set is_allowed = article.platform_statuses.get('allow_watermark', false) %}
+                  <input type="hidden" name="allow_watermark" value="{{ 0 if is_allowed else 1 }}">
+                  <button type="submit" class="btn btn-outline text-xs">
+                    {% if is_allowed %}
+                      ✓ Разрешено фото с водяным знаком (Нажмите, чтобы запретить)
+                    {% else %}
+                      Разрешить оригинальное фото с водяным знаком
+                    {% endif %}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ---- Right Pane (35%): Action Desk & Quick Edit ---- #}
+    <div class="w-full shrink-0 flex flex-col justify-between overflow-y-auto bg-[#FAFAFA] p-5 md:w-88">
+      <div class="space-y-4">
+
+        {# Ad / Commercial Integration Card #}
+        <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm space-y-2">
+          <div class="text-[12px] font-semibold uppercase tracking-wider text-mac-secondary flex items-center justify-between">
+            <span>Рекламная интеграция</span>
+            <span class="text-[10px] text-mac-muted">из /ads</span>
+          </div>
+          {% set ad_detected = article.content_html and ('data-project-name=' in article.content_html or 'erid:' in article.content_html or 'class="svodka-ad-card' in article.content_html) %}
+          {% if ad_detected %}
+            <div class="rounded-xl border border-purple-200 bg-purple-50/70 p-3 text-xs text-purple-900 space-y-1">
+              <div class="font-semibold flex items-center gap-1.5">
+                <span>🏷 Партнерский проект подключен</span>
+              </div>
+              <p class="text-[11.5px] text-purple-800">
+                В текст статьи автоматически интегрирован нативный промо-блок рекламодателя с маркировкой erid.
+              </p>
+            </div>
+          {% else %}
+            <div class="rounded-xl border border-black/[0.04] bg-black/[0.02] p-3 text-xs text-mac-secondary space-y-1">
+              <div class="font-medium">Без коммерческой рекламы</div>
+              <p class="text-[11px] text-mac-muted">
+                Brand Safety проверен: тема не содержит рекламодателей либо сюжет помечен как неподходящий для интеграций.
+              </p>
+            </div>
+          {% endif %}
+        </div>
+
+        {# Distribution & Links Card #}
+        <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] font-semibold uppercase tracking-wider text-mac-secondary">
+              Дистрибуция (Площадки)
+            </span>
+            <span class="text-[11px] text-mac-muted">
+              {{ distribution_items | selectattr('state', 'equalto', 'published') | list | length }} / {{ distribution_items | length }}
+            </span>
+          </div>
+          <div class="space-y-2 text-xs divide-y divide-black/[0.03]">
+            {% for p in distribution_items %}
+              <div class="pt-2 first:pt-0">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-medium text-mac-ink">{{ p.full_name }}:</span>
+                  {% if p.state == 'published' and p.url %}
+                    <a href="{{ p.url }}" target="_blank"
+                       class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold text-[11.5px] hover:underline">
+                      <span>Открыть ↗</span>
+                    </a>
+                  {% elif p.state == 'published' %}
+                    <span class="text-emerald-700 font-medium text-[11px]">✓ Опубликовано</span>
+                  {% elif p.state == 'queued' %}
+                    <span class="text-amber-700 font-medium text-[11px]">⏳ В очереди</span>
+                  {% elif p.state == 'failed' %}
+                    <span class="text-rose-700 font-semibold text-[11px]">⚠️ Ошибка</span>
+                  {% else %}
+                    <span class="text-mac-muted text-[11px]">Отключено</span>
+                  {% endif %}
+                </div>
+                {% if p.state == 'failed' and p.reason %}
+                  <p class="text-[10.5px] text-rose-600 mt-0.5 leading-snug break-words">
+                    {{ p.reason }}
+                  </p>
+                {% elif p.state == 'queued' and p.reason %}
+                  <p class="text-[10.5px] text-amber-600 mt-0.5 leading-snug">
+                    {{ p.reason }}
+                  </p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# HITL Action Center #}
+        <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm space-y-3">
+          <div class="text-[12px] font-semibold uppercase tracking-wider text-mac-secondary">
+            Управление инфоповодом
+          </div>
+
+          {# 1. Approve & Publish or Republish Socials Button #}
+          {% if article.status.value == 'wp_published' or article.status == 'wp_published' %}
+            <form hx-post="/api/ui/articles/{{ article.id }}/republish-social"
+                  hx-target="#article-modal"
+                  hx-swap="innerHTML"
+                  hx-indicator="#publish-spinner"
+                  hx-confirm="Повторить отправку статьи во все недоопубликованные соцсети?">
+              <button type="submit"
+                      class="btn btn-primary w-full py-2.5 text-[13px] font-medium shadow-sm bg-amber-600 hover:bg-amber-700">
+                <svg class="w-4 h-4 mr-1 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Допостить в соцсети (Retry)
+              </button>
+            </form>
+          {% else %}
+            <form hx-post="/api/ui/articles/{{ article.id }}/approve_publish"
+                  hx-target="#article-modal"
+                  hx-swap="innerHTML"
+                  hx-indicator="#publish-spinner"
+                  hx-confirm="Одобрить материал и отправить на сайт?">
+              <button type="submit"
+                      class="btn btn-primary w-full py-2.5 text-[13px] font-medium shadow-sm">
+                <svg class="w-4 h-4 mr-1 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Одобрить и опубликовать
+              </button>
+            </form>
+          {% endif %}
+          <div id="publish-spinner" class="htmx-indicator text-center text-xs text-mac-secondary">
+            Связь с публикатором…
+          </div>
+
+          {# 2. Rewrite with Style Selector #}
+          <form hx-post="/api/ui/articles/{{ article.id }}/rewrite"
+                hx-target="#article-modal"
+                hx-swap="innerHTML"
+                hx-indicator="#rewrite-spinner"
+                class="pt-2 border-t border-black/[0.04] space-y-2">
+            <label class="block text-[11px] font-medium text-mac-secondary">Переписать в другом стиле:</label>
+            <div class="flex gap-2">
+              <select name="style" class="field py-1 px-2.5 text-[12px] flex-1">
+                <option value="analytical">Аналитический разбор</option>
+                <option value="breaking">Срочная молния</option>
+                <option value="longread">Развернутый лонгрид</option>
+                <option value="ironic">Ироничный обзор</option>
+              </select>
+              <button type="submit" class="btn btn-outline text-xs whitespace-nowrap">
+                Переписать
+              </button>
+            </div>
+            <div id="rewrite-spinner" class="htmx-indicator text-center text-xs text-mac-secondary">
+              Генерация текста и anti-slop…
+            </div>
+          </form>
+        </div>
+
+        {# Metadata Quick Edit Form #}
+        <form class="space-y-3.5"
+              hx-post="/api/ui/articles/{{ article.id }}/edit"
+              hx-target="#article-modal"
+              hx-swap="innerHTML">
+          <input type="hidden" name="category" value="{{ article.category }}">
+
+          <div>
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">Заголовок H1</label>
+            <textarea name="title" rows="2" required
+                      class="field text-[13px] leading-snug">{{ article.title }}</textarea>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">Редакционная рубрика</label>
+            <select name="category_real"
+                    onchange="this.form.category.value=this.value"
+                    class="field text-[13px]">
+              {% for slug in categories %}
+                <option value="{{ slug }}" {% if slug == article.category %}selected{% endif %}>
+                  {{ category_title(slug) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">SEO Title (до 70 симв.)</label>
+            <input name="seo_title" value="{{ article.seo_title or '' }}" maxlength="70"
+                   class="field text-[13px]">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">SEO Description (до 160 симв.)</label>
+            <textarea name="seo_description" rows="2" maxlength="160"
+                      class="field text-[13px] leading-snug">{{ article.seo_description or '' }}</textarea>
+          </div>
+
+          <dl class="grid grid-cols-2 gap-2 rounded-xl bg-white p-3 text-[11px] border border-black/[0.06]">
+            <dt class="text-mac-secondary">Статус:</dt>
+            <dd class="mono font-medium text-mac-ink">{{ article.status.value if article.status.value is defined else article.status }}</dd>
+            <dt class="text-mac-secondary">WP Post ID:</dt>
+            <dd class="mono font-medium text-mac-ink">{{ article.wp_post_id or '—' }}</dd>
+            <dt class="text-mac-secondary">Создан:</dt>
+            <dd class="mono text-mac-ink">{{ article.created_at.strftime('%d.%m.%Y %H:%M') if article.created_at else '—' }}</dd>
+          </dl>
+
+          <button type="submit" class="btn btn-outline w-full py-2 text-xs font-medium">
+            Сохранить правки
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{# Interactive Tabs Script #}
+<script>
+  document.getElementById('article-modal').classList.remove('hidden');
+
+  function switchModalTab(tabId) {
+    document.querySelectorAll('.modal-tab-content').forEach(function(el) {
+      el.classList.add('hidden');
+      el.classList.remove('block');
+    });
+    var target = document.getElementById(tabId);
+    if (target) {
+      target.classList.remove('hidden');
+      target.classList.add('block');
+    }
+
+    document.querySelectorAll('.modal-tab-btn').forEach(function(btn) {
+      btn.classList.remove('border-mac-blue', 'text-mac-ink', 'font-semibold');
+      btn.classList.add('border-transparent', 'text-mac-secondary');
+    });
+    var activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) {
+      activeBtn.classList.remove('border-transparent', 'text-mac-secondary');
+      activeBtn.classList.add('border-mac-blue', 'text-mac-ink', 'font-semibold');
+    }
+  }
+</script>
+{% endif %}

@@ -1,0 +1,42 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+pgvector==0.3.6
+pydantic==2.10.4
+pydantic-settings==2.7.0
+redis[hiredis]==5.2.1
+arq==0.26.3
+httpx[http2]==0.28.1
+jinja2==3.1.5
+python-multipart==0.0.20
+bcrypt==4.2.1
+pyjwt==2.10.1
+playwright==1.49.1
+playwright-stealth==1.0.6
+trafilatura==2.0.0
+lxml==5.3.0
+opencv-python-headless==4.10.0.84
+pytesseract==0.3.13
+numpy==2.2.1
+pillow==11.1.0
+datasketch==1.6.5
+asyncssh==2.19.0
+
+# Local sentence embeddings for deduplication level 2: ONNX inference on the
+# worker, so a vector costs no tokens and needs no network. This gateway has no
+# embedding provider at all (403 for Gemini, 400 for OpenAI), which is what
+# moved embeddings on-worker. The 384-dim width is baked into the schema.
+fastembed==0.8.0
+
+# MTProto client for multi-account Telegram ingestion. Needed for StringSession
+# and 2FA sign-in, which the GramJS HTTP bridge does not expose.
+telethon==1.44.0
+segno==1.6.6
+python-json-logger==3.2.1
+pytest==8.3.4
+pytest-asyncio==0.25.2
+respx==0.22.0
+fakeredis==2.26.2

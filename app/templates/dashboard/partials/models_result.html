@@ -1,0 +1,32 @@
+{#
+  Result of saving the model matrix.
+
+  Echoes the routing the server actually stored, per stage, rather than assuming
+  the form was applied: an empty field clears an override, so what the operator
+  typed and what now routes are not always the same thing.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-3">
+    <div class="text-sm font-medium text-emerald-200">
+      Матрица моделей сохранена
+    </div>
+    <dl class="mt-2 grid gap-1 text-xs text-emerald-100/90">
+      {% for row in routing %}
+        <div class="flex flex-wrap gap-2">
+          <dt class="text-emerald-300/80">{{ row.task }}</dt>
+          <dd class="mono">{{ row.model }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+    <p class="mt-2 text-xs text-emerald-300/70">
+      Применяется к следующему кластеру — перезапуск не нужен.
+    </p>
+  </div>
+{% endif %}

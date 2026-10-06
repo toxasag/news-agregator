@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Источники{% endblock %}
+{% block heading %}Источники{% endblock %}
+{% block subheading %}
+  Telegram-аккаунты, диалоги со всех аккаунтов и сайты. Сбор идёт только из
+  отмеченных строк; первый проход и сбор после простоя берут посты не старше
+  сегодня (с 00:00 по Москве).
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">
+        Telegram-аккаунты
+        <span class="text-slate-500">({{ telegram_accounts | length }})</span>
+      </h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Сбор идёт от имени реальных аккаунтов: лимиты Telegram считаются на
+        аккаунт, поэтому пул раздаёт нагрузку и пропускает те, что в flood wait.
+      </p>
+    </header>
+    <div id="telegram-accounts-panel">
+      {% include "partials/telegram_accounts.html" %}
+    </div>
+  </section>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b
+                   border-slate-800 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-medium text-slate-200">
+          Telegram-диалоги
+          <span class="text-slate-500">({{ rows | length }})</span>
+        </h2>
+        <p class="mt-0.5 text-xs text-slate-500">
+          Каналы, группы, чаты и боты со всех подключённых аккаунтов. Ссылка
+          открывает диалог в Telegram. Чекбокс «Сбор» включает конвейер только
+          для отмеченных.
+        </p>
+      </div>
+      <button hx-post="/api/ui/sources/telegram/import"
+              hx-target="#import-result"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+              hx-indicator="#import-spinner"
+              class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                     text-slate-900 hover:bg-white disabled:opacity-50">
+        Обновить список
+      </button>
+    </header>
+    <div class="flex items-center gap-2 px-4 pt-3">
+      <span id="import-spinner" class="htmx-indicator text-xs text-slate-400">
+        читаю диалоги со всех аккаунтов…
+      </span>
+    </div>
+    <div id="import-result" class="px-4 pb-1"></div>
+    {% include "partials/channels_panel.html" %}
+  </section>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">
+        Сайты
+        <span class="text-slate-500">({{ website_sources | length }})</span>
+      </h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Источники для будущего ресерча. Удаление выключает сбор, история постов
+        сохраняется.
+      </p>
+    </header>
+    <div id="website-sources-panel">
+      {% include "partials/website_sources.html" %}
+    </div>
+  </section>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">Добавить сайт</h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Сначала можно проверить селекторы на живой странице — предпросмотр
+        ничего не записывает. «Сохранить» создаёт источник.
+      </p>
+    </header>
+    <form class="space-y-3 p-4"
+          hx-post="/api/ui/sources/website/save"
+          hx-target="#website-sources-panel"
+          hx-swap="innerHTML"
+          hx-disabled-elt="find button[type='submit']">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="site_name" class="block text-xs text-slate-400">Название</label>
+          <input id="site_name" name="name" type="text" required
+                 placeholder="Пример.ру"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                        py-2 text-sm text-white placeholder-slate-500
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+        <div>
+          <label for="site_url" class="block text-xs text-slate-400">URL ленты</label>
+          <input id="site_url" name="url" type="url" required
+                 placeholder="https://example.ru/news/"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                        py-2 text-sm text-white placeholder-slate-500
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="title_selector" class="block text-xs text-slate-400">
+            title_selector
+          </label>
+          <input id="title_selector" name="title_selector" type="text"
+                 placeholder="h1.article__title"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900
+                        px-3 py-2 text-sm text-white mono placeholder-slate-600
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+        <div>
+          <label for="content_selector" class="block text-xs text-slate-400">
+            content_selector
+          </label>
+          <input id="content_selector" name="content_selector" type="text"
+                 placeholder="div.article__body"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900
+                        px-3 py-2 text-sm text-white mono placeholder-slate-600
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+      </div>
+      <button type="submit"
+              class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                     text-slate-900 hover:bg-white disabled:opacity-50">
+        Сохранить сайт
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">Конструктор селекторов</h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Проверка правил на живой странице до сохранения источника: предпросмотр
+        ничего не записывает в базу.
+      </p>
+    </header>
+    <form class="space-y-3 p-4"
+          hx-post="/api/ui/sources/website/test"
+          hx-target="#selector-preview"
+          hx-swap="innerHTML"
+          hx-disabled-elt="find button[type='submit']"
+          hx-indicator="#selector-spinner">
+      <div>
+        <label for="url" class="block text-xs text-slate-400">URL страницы</label>
+        <input id="url" name="url" type="url" required
+               placeholder="https://example.ru/news/1"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white placeholder-slate-500
+                      focus:border-slate-500 focus:outline-none">
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="test_title_selector" class="block text-xs text-slate-400">
+            title_selector
+          </label>
+          <input id="test_title_selector" name="title_selector" type="text"
+                 placeholder="h1.article__title"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900
+                        px-3 py-2 text-sm text-white mono placeholder-slate-600
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+        <div>
+          <label for="test_content_selector" class="block text-xs text-slate-400">
+            content_selector
+          </label>
+          <input id="test_content_selector" name="content_selector" type="text"
+                 placeholder="div.article__body"
+                 class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900
+                        px-3 py-2 text-sm text-white mono placeholder-slate-600
+                        focus:border-slate-500 focus:outline-none">
+        </div>
+      </div>
+      <button type="submit"
+              class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                     text-slate-900 hover:bg-white disabled:opacity-50">
+        Проверить
+      </button>
+      <span id="selector-spinner" class="htmx-indicator ml-2 text-xs text-slate-400">
+        открываю страницу…
+      </span>
+    </form>
+    <div id="selector-preview" class="px-4 pb-4 text-xs text-slate-400"></div>
+  </section>
+
+  <div id="source-result" class="text-sm text-slate-400"></div>
+</div>
+{% endblock %}

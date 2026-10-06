@@ -1,0 +1,32 @@
+{#
+  The Telegram channels table.
+
+  One row per source. The two checkboxes post to the flags endpoint and swap in
+  the refreshed row, so the state shown is always what the database holds rather
+  than what the browser guessed.
+#}
+<form id="sources-bulk" class="flex flex-wrap items-center gap-2 px-4 py-3"
+      hx-post="/api/ui/sources/telegram/bulk"
+      hx-target="#channels-table-body-wrap"
+      hx-swap="innerHTML">
+  <span class="text-xs text-slate-500">Массово:</span>
+  <button type="submit" name="action" value="all"
+          class="rounded-md border border-slate-700 px-2.5 py-1 text-xs
+                 text-slate-300 hover:border-slate-500 hover:text-white">
+    Выбрать все
+  </button>
+  <button type="submit" name="action" value="none"
+          class="rounded-md border border-slate-700 px-2.5 py-1 text-xs
+                 text-slate-300 hover:border-slate-500 hover:text-white">
+    Снять все
+  </button>
+  <button type="submit" name="action" value="media_only"
+          class="rounded-md border border-slate-700 px-2.5 py-1 text-xs
+                 text-slate-300 hover:border-slate-500 hover:text-white">
+    Только медиа
+  </button>
+</form>
+
+<div id="channels-table-body-wrap">
+{% include "partials/sources_table.html" %}
+</div>

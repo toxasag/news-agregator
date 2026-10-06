@@ -1,0 +1,108 @@
+{% if auth_cleared %}
+  <div id="telegram-auth-panel" hx-swap-oob="innerHTML"></div>
+{% endif %}
+{#
+  Telegram account pool.
+
+  Shows every configured account and its state so an operator can tell "no
+  accounts" from "all accounts rate-limited". The session string is never
+  rendered: it is a bearer credential.
+#}
+<div class="divide-y divide-slate-800">
+  {% for item in telegram_accounts %}
+    {% set account = item.account %}
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div class="min-w-0">
+        <div class="truncate text-sm text-slate-200">{{ account.display_name }}</div>
+        <div class="mono text-xs text-slate-500">
+          {{ account.phone_number }} · api_id {{ account.api_id }}
+        </div>
+        {% if account.last_error %}
+          <div class="mt-0.5 truncate text-xs text-amber-400/80"
+               title="{{ account.last_error }}">
+            {{ account.last_error }}
+          </div>
+        {% endif %}
+      </div>
+      <div class="flex flex-shrink-0 items-center gap-3">
+        {% if item.last_used %}
+          <span class="mono hidden text-xs text-slate-500 sm:inline">
+            использован {{ item.last_used }}
+          </span>
+        {% else %}
+          <span class="mono hidden text-xs text-slate-600 sm:inline">
+            ещё не использован
+          </span>
+        {% endif %}
+
+        {% if item.state == 'active' %}
+          <span class="rounded bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300">
+            активен
+          </span>
+        {% elif item.state == 'flood_wait' %}
+          <span class="rounded bg-amber-950/60 px-2 py-0.5 text-xs text-amber-300"
+                title="Telegram ограничил аккаунт; пул пропустит его до этого момента">
+            flood wait{% if item.flood_wait_until %} до {{ item.flood_wait_until }}{% endif %}
+          </span>
+        {% elif item.state == 'auth_required' %}
+          <span class="rounded bg-rose-950/60 px-2 py-0.5 text-xs text-rose-300"
+                title="Сессия отсутствует или не читается">
+            нужна авторизация
+          </span>
+        {% else %}
+          <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-500"
+                title="Отключён после {{ item.failure_count }} ошибок подряд">
+            отключён
+          </span>
+        {% endif %}
+
+        <form hx-post="/api/ui/sources/telegram/accounts/{{ account.id }}/disconnect"
+              hx-confirm="Отключить {{ account.display_name }}? Сессия будет стёрта, сбор с этого аккаунта остановится."
+              hx-target="#telegram-accounts-panel"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this">
+          <button type="submit"
+                  class="rounded-md border border-rose-900/60 px-2 py-1 text-xs
+                         text-rose-200 hover:border-rose-700 hover:text-rose-100
+                         disabled:opacity-50">
+            Отключить
+          </button>
+        </form>
+      </div>
+    </div>
+  {% else %}
+    <div class="px-4 py-6 text-center">
+      <p class="text-sm text-slate-500">Telegram-аккаунты не добавлены.</p>
+      <p class="mt-1 text-xs text-slate-600">
+        Сбор из Telegram не запустится, пока нет ни одного авторизованного
+        аккаунта.
+      </p>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="border-t border-slate-800 px-4 py-3">
+  <p class="text-xs text-slate-400">
+    Подключить ещё один аккаунт — QR-кодом или номером телефона. Код и пароль
+    2FA запрашиваются здесь, сессия в интерфейс не показывается.
+  </p>
+  <div class="mt-2 flex flex-wrap gap-2">
+    <button type="button"
+            hx-get="/api/ui/sources/telegram/auth/form?method=qr"
+            hx-target="#telegram-auth-panel"
+            hx-swap="innerHTML"
+            class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                   text-slate-900 hover:bg-white">
+      Подключить по QR
+    </button>
+    <button type="button"
+            hx-get="/api/ui/sources/telegram/auth/form?method=phone"
+            hx-target="#telegram-auth-panel"
+            hx-swap="innerHTML"
+            class="rounded-md border border-slate-700 px-3 py-1.5 text-sm
+                   text-slate-200 hover:border-slate-500 hover:text-white">
+      Подключить по номеру
+    </button>
+  </div>
+  <div id="telegram-auth-panel" class="mt-3"></div>
+</div>

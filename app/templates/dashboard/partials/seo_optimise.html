@@ -1,0 +1,42 @@
+{#
+  Response to the soft-optimisation trigger.
+
+  Reports the work list rather than claiming a job was enqueued. Regenerating a
+  *published* article's headline and description has to decide what happens to the
+  live WordPress post and to the platforms that already carry it — the same open
+  question the articles editor's save button faces — so the honest intermediate
+  state is to show the operator exactly what would be queued.
+#}
+{% if not queue %}
+  <div role="status"
+       class="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm
+              text-slate-400">
+    Очередь пуста: материалов с недобором кликов не найдено.
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-sky-900/60 bg-sky-950/30 px-4 py-3">
+    <div class="text-sm font-medium text-sky-200">
+      Отобрано материалов: {{ queue | length }}
+    </div>
+    <ul class="mt-2 space-y-1 text-xs text-sky-100/90">
+      {% for item in queue[:10] %}
+        <li class="flex flex-wrap items-baseline gap-2">
+          <span class="mono truncate max-w-sm">{{ item.url }}</span>
+          <span class="text-sky-300/80">
+            поз. {{ item.position }}, CTR {{ (item.ctr * 100) | round(1) }}%,
+            потенциал +{{ item.potential_clicks }} кликов
+          </span>
+        </li>
+      {% endfor %}
+      {% if queue | length > 10 %}
+        <li class="text-sky-300/70">…и ещё {{ (queue | length) - 10 }}</li>
+      {% endif %}
+    </ul>
+    <p class="mt-2 text-xs text-amber-300/90">
+      Постановка в фоновую очередь появится вместе с сохранением материалов:
+      перегенерация сниппета опубликованной статьи должна решить, что делать с
+      живым постом в WordPress и с уже разосланными платформами.
+    </p>
+  </div>
+{% endif %}

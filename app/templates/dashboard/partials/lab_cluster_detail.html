@@ -1,0 +1,651 @@
+{#
+  Apple macOS HIG: Stepwise Studio for Selected News Cluster (Step 2)
+#}
+<div class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-5">
+  
+  {# Studio Header #}
+  <div class="border-b border-black/[0.06] pb-4 space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="mac-pill mac-pill-blue font-semibold">Студия сюжета</span>
+        {% if cluster.risk_level == "green" %}
+          <span class="mac-pill mac-pill-good">Безопасно</span>
+        {% elif cluster.risk_level == "yellow" %}
+          <span class="mac-pill mac-pill-warn">Внимание</span>
+        {% elif cluster.risk_level == "red" %}
+          <span class="mac-pill mac-pill-danger">Риск</span>
+        {% endif %}
+        <span class="mac-pill mac-pill-neutral">{{ cluster.source_count }} источников / {{ cluster.posts_count }} сообщений</span>
+      </div>
+
+      <div class="text-[11px] text-mac-secondary font-mono">
+        ID: {{ cluster.cluster_id[:8] }}
+      </div>
+    </div>
+
+    <h3 class="text-base font-semibold text-mac-ink leading-snug">
+      {{ cluster.title }}
+    </h3>
+
+    {# AEVI Audience Engagement & Virality Index Banner #}
+    {% if cluster.aevi %}
+      <div class="rounded-xl border border-black/[0.08] bg-gradient-to-br from-white via-white to-slate-50/80 p-3.5 space-y-2.5 text-xs shadow-2xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-mac-ink">🎯 Привлекательность сюжета (AEVI)</span>
+            <span class="mac-pill {% if cluster.aevi.level == 'viral' %}bg-gradient-to-r from-amber-500 to-rose-600 text-white font-bold shadow-xs{% elif cluster.aevi.level == 'high' %}bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-semibold{% else %}mac-pill-blue font-medium{% endif %} text-[11px]">
+              {{ cluster.aevi.badge_text }} · {{ cluster.aevi.total_score }} / 100
+            </span>
+          </div>
+          <div class="text-[11px] text-mac-secondary font-medium">
+            Алгоритм 4 векторов
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase font-semibold">Поисковый спрос</div>
+            <div class="font-mono font-bold text-mac-ink">{{ cluster.aevi.search_demand_score }} / 30</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase font-semibold">Удержание рубрики</div>
+            <div class="font-mono font-bold text-mac-ink">{{ cluster.aevi.historical_engagement_score }} / 30</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase font-semibold">Яндекс.Крипта ЦА</div>
+            <div class="font-mono font-bold text-mac-ink">{{ cluster.aevi.crypta_affinity_score }} / 25</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase font-semibold">Фактура и срочность</div>
+            <div class="font-mono font-bold text-mac-ink">{{ cluster.aevi.fact_richness_score }} / 15</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-mac-secondary border-t border-black/[0.04]">
+          <div class="flex items-center gap-1.5">
+            <span class="font-semibold text-mac-ink">ЦА:</span>
+            <span>{{ cluster.aevi.target_audience }}</span>
+          </div>
+          <div class="flex items-center gap-2 font-mono">
+            <span>~{{ cluster.aevi.predicted_views }} виз.</span>
+            <span>•</span>
+            <span>~{{ cluster.aevi.predicted_reading_time_sec }}с чтение</span>
+            <span>•</span>
+            <span>CTR ~{{ cluster.aevi.predicted_ctr_pct }}%</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Intelligent Rubrication Block with Justification & New Category Creation #}
+    <div id="rubric-classification-block" class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3 space-y-2.5 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold text-mac-secondary">Рубрика:</span>
+          {% if cluster.is_ai_classified %}
+            <span class="mac-pill mac-pill-blue font-semibold">{{ cluster.category_title }}</span>
+          {% else %}
+            <span class="mac-pill mac-pill-neutral font-medium">{{ cluster.category_title }}</span>
+          {% endif %}
+        </div>
+
+        <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/classify-category"
+                hx-target="#rubric-classification-block"
+                hx-swap="innerHTML"
+                hx-indicator="#rubric-spinner"
+                class="rounded-lg bg-white border border-black/[0.12] px-2.5 py-1 text-[11px] font-semibold text-mac-ink hover:bg-black/[0.02] shadow-2xs transition-colors flex items-center gap-1">
+          <span>🤖 Определить рубрику ИИ</span>
+        </button>
+      </div>
+
+      <div id="rubric-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>ИИ анализирует тему и подбирает точную рубрику…</span>
+      </div>
+
+      {% if cluster.category_justification %}
+        <div class="rounded-lg bg-white border border-black/[0.04] p-2.5 text-mac-ink/90 leading-relaxed text-[11px]">
+          <span class="font-semibold text-mac-ink">Обоснование ИИ: </span>{{ cluster.category_justification }}
+        </div>
+      {% endif %}
+
+      {# AI Proposal for New Category on the fly #}
+      {% if cluster.suggested_rubric %}
+        <div class="rounded-lg border border-amber-300 bg-amber-50/70 p-3 space-y-2">
+          <div class="flex items-center gap-1.5 text-amber-900 font-semibold text-[11px]">
+            <span>💡 Предложена новая рубрика:</span>
+            <span class="font-bold">«{{ cluster.suggested_rubric.title }}»</span>
+            <span class="font-mono text-[10px] text-amber-700">({{ cluster.suggested_rubric.slug }})</span>
+          </div>
+          <p class="text-[11px] text-amber-800 leading-snug">
+            {{ cluster.suggested_rubric.description }}
+          </p>
+          <form hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/add-category"
+                hx-target="#rubric-classification-block"
+                hx-swap="innerHTML">
+            <input type="hidden" name="slug" value="{{ cluster.suggested_rubric.slug }}">
+            <input type="hidden" name="title" value="{{ cluster.suggested_rubric.title }}">
+            <input type="hidden" name="description" value="{{ cluster.suggested_rubric.description }}">
+            <button type="submit"
+                    class="rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 text-[11px] font-semibold transition-colors shadow-2xs">
+              + Создать рубрику «{{ cluster.suggested_rubric.title }}» в БД и привязать к сюжету
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Source Posts Full Inspection Drawer #}
+    <details class="group rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3 text-xs">
+      <summary class="cursor-pointer font-semibold text-mac-ink hover:text-[#0071E3] flex items-center justify-between">
+        <span>📖 Первоисточники и сообщения сюжета ({{ cluster.posts_count }} сообщ. из {{ cluster.source_count }} каналов)</span>
+        <span class="text-[10px] text-mac-secondary group-open:rotate-180 transition-transform">▼</span>
+      </summary>
+
+      <div class="mt-3 space-y-2.5 border-t border-black/[0.06] pt-3">
+        {% for p in cluster.all_posts %}
+          <div class="rounded-xl border border-black/[0.06] bg-white p-3 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-mac-ink">{{ p.source_name }}</span>
+                <span class="mac-pill mac-pill-neutral text-[10px]">{{ p.status_label }}</span>
+                {% if p.similarity %}
+                  <span class="mac-pill mac-pill-blue text-[10px]">Сходство: {{ p.similarity }}</span>
+                {% endif %}
+              </div>
+              <div class="flex items-center gap-2 text-mac-secondary">
+                <span>{{ p.created_at }}</span>
+                {% if p.post_url %}
+                  <a href="{{ p.post_url }}" target="_blank" rel="noopener" class="text-[#0071E3] hover:underline">
+                    Ссылка ↗
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+
+            <p class="text-mac-ink leading-relaxed whitespace-pre-line text-xs">
+              {{ p.full_text }}
+            </p>
+
+            {% if p.media_count > 0 %}
+              <div class="text-[11px] text-mac-secondary font-mono">
+                Прикреплено медиа: {{ p.media_count }} шт.
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+
+  {# 4 Stepper Pipeline Blocks #}
+  <div class="space-y-4">
+
+    {# STEP 1: Research #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+          <span class="text-xs font-semibold text-mac-ink">Внешний веб-ресерч и связи с архивом</span>
+        </div>
+        <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/research"
+                hx-target="#step-research-container"
+                hx-swap="innerHTML"
+                hx-indicator="#step-1-spinner"
+                class="rounded-xl bg-white border border-black/[0.12] px-3 py-1.5 text-xs font-semibold text-mac-ink hover:bg-black/[0.02] shadow-2xs transition-colors flex items-center gap-1">
+          <span>🌐 Исследовать в сети</span>
+        </button>
+      </div>
+
+      <div id="step-1-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Поиск в сети DuckDuckGo, сбор фактов и связей с архивом…</span>
+      </div>
+
+      <div id="step-research-container">
+        {% if cluster.facts or cluster.related_articles or cluster.web_sources %}
+          {% set facts = cluster.facts %}
+          {% set related_articles = cluster.related_articles %}
+          {% set web_sources = cluster.web_sources %}
+          {% set web_facts = cluster.web_facts %}
+          {% set search_query = cluster.search_query %}
+          {% include "partials/lab_research_result.html" %}
+        {% else %}
+          <div class="text-xs text-mac-secondary">
+            Нажмите кнопку для поиска контекста в сети, выделения фактов и связей с архивом.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+
+    {# STEP 2: Media & OCR #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-[10px] font-bold">2</span>
+          <span class="text-xs font-semibold text-mac-ink">Медиа, видео и OCR водяных знаков</span>
+        </div>
+        <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/media"
+                hx-target="#step-media-container"
+                hx-swap="innerHTML"
+                hx-indicator="#step-2-spinner"
+                class="rounded-xl bg-white border border-black/[0.12] px-3 py-1.5 text-xs font-semibold text-mac-ink hover:bg-black/[0.02] shadow-2xs transition-colors">
+          Проверить медиа
+        </button>
+      </div>
+
+      <div id="step-2-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Анализ фото, видео и OCR-сканирование водяных знаков…</span>
+      </div>
+
+      <div id="step-media-container">
+        {% if cluster.media_verdicts %}
+          {% set images = cluster.media_verdicts %}
+          {% set cluster_id = cluster.cluster_id %}
+          {% set fallback_prompt = cluster.fallback_image_prompt %}
+          {% set web_images = cluster.web_images %}
+          {% set suggested_prompt = "" %}
+          {% set generation_error = "" %}
+          {% set fallback_needed = False %}
+          {% include "partials/lab_media_result.html" %}
+        {% else %}
+          <div class="text-xs text-mac-secondary">
+            Нажмите кнопку для проверки изображений на водяные знаки, безопасного кропа 15% или Fallback-генерации.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# STEP 3: Generation & Anti-Slop #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-[10px] font-bold">3</span>
+          <span class="text-xs font-semibold text-mac-ink">AI Генерация статьи, SEO и перелинковка</span>
+        </div>
+      </div>
+
+      {# Generation options form with editable prompt #}
+      <form hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/generate"
+            hx-target="#step-generate-container"
+            hx-swap="innerHTML"
+            hx-indicator="#step-3-spinner"
+            class="space-y-3 border-t border-black/[0.06] pt-3">
+        <input type="hidden" name="selected_cover_url" id="lab-selected-cover-url" value="">
+
+        {# Promoted Project / Native Advertorial Selector with Brand Safety #}
+        {% if not cluster.is_brand_safe %}
+          <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-900 space-y-2">
+            <div class="flex items-start gap-2.5">
+              <div class="text-base shrink-0">🛡️</div>
+              <div class="space-y-0.5 flex-1 min-w-0">
+                <div class="font-semibold text-rose-950">Brand Safety: коммерческая интеграция заблокирована</div>
+                <div class="text-[11px] text-rose-800/90 leading-snug">
+                  {{ cluster.brand_safety_reason }}. Статья генерируется строго по редакционному стандарту «ДНК Победителей» без рекламы.
+                </div>
+              </div>
+            </div>
+            
+            {# Editor manual override checkbox #}
+            <div class="pt-2 border-t border-rose-200/80 flex items-center justify-between gap-3 flex-wrap">
+              <label class="inline-flex items-center gap-2 cursor-pointer text-[11px] font-semibold text-rose-950 hover:text-black">
+                <input type="checkbox" name="override_brand_safety" value="true"
+                       id="override-brand-safety-chk"
+                       onchange="document.getElementById('override-promo-project-container').style.display = this.checked ? '' : 'none';"
+                       class="rounded border-rose-300 text-rose-600 focus:ring-rose-500">
+                <span>Снять блокировку Brand Safety (новость о кино/культуре/ретроспективе)</span>
+              </label>
+            </div>
+
+            <div id="override-promo-project-container" style="display: none;" class="mt-2 pt-2 border-t border-rose-200/80">
+              <label class="block text-[11px] font-semibold text-rose-950 mb-1">
+                Выберите рекламодателя для принудительной интеграции:
+              </label>
+              <select name="promoted_project_id"
+                      class="w-full rounded-xl border border-rose-300 bg-white px-2.5 py-1.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none">
+                <option value="">📰 Без рекламы (редакционная статья)</option>
+                {% if cluster.all_active_projects %}
+                  {% for proj in cluster.all_active_projects %}
+                    <option value="{{ proj.id }}">
+                      🚀 Нативная статья: {{ proj.brand_name or proj.name }} ({{ proj.product_name or proj.name }})
+                    </option>
+                  {% endfor %}
+                {% elif cluster.promoted_projects %}
+                  {% for proj in cluster.promoted_projects %}
+                    <option value="{{ proj.id }}">
+                      🚀 Нативная статья: {{ proj.brand_name or proj.name }} ({{ proj.product_name or proj.name }})
+                    </option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+          </div>
+        {% else %}
+          <div class="rounded-xl border border-black/[0.06] bg-white p-3 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="block text-[11px] font-semibold text-mac-ink flex items-center gap-1.5">
+                <span>🚀 Продуктовая интеграция (Brand Journalism / Native Advertorial)</span>
+                <span class="mac-pill mac-pill-good text-[10px]">🛡️ 100% Brand Safe</span>
+              </label>
+              <span class="text-[10px] text-mac-secondary">Формат нативной новости о продукте</span>
+            </div>
+            <select name="promoted_project_id"
+                    id="lab-promoted-project-select"
+                    class="w-full rounded-xl border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none">
+              <option value="">📰 Редакционная новость (без рекламы, чистый стандарт «ДНК Победителей»)</option>
+              {% if cluster.promoted_projects %}
+                {% for proj in cluster.promoted_projects %}
+                  <option value="{{ proj.id }}">
+                    🚀 Нативная статья: {{ proj.brand_name or proj.name or 'Проект' }}{% if proj.product_name or proj.name %} ({{ proj.product_name or proj.name }}){% endif %}{% if proj.target_audience_segment %} — {{ proj.target_audience_segment[:40] }}{% elif proj.usp %} — {{ proj.usp[:40] }}{% endif %}
+                  </option>
+                {% endfor %}
+              {% endif %}
+            </select>
+            <div class="text-[10px] text-mac-secondary leading-snug">
+              При выборе проекта новость нативно интегрирует продукт по эталону победителей вовлечения («Магнит Доставка + Илья Куруч»), генерирует размеченные ссылки с UTM-метками и сквозным расчетом индекса CQI.
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
+          <div class="min-w-0">
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">Стилистический формат</label>
+            <select name="style_angle"
+                    id="lab-style-select"
+                    data-prompts='{{ cluster.style_prompts_json | safe }}'
+                    onchange="switchLabStyle(this)"
+                    class="w-full box-border rounded-xl border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none font-medium truncate">
+              <option value="Информационный" selected>Информационный (строгий новостной)</option>
+              <option value="Аналитический">Аналитический (глубокий разбор)</option>
+              <option value="Срочная молния">Срочная молния (оперативно)</option>
+              <option value="Лонгрид">Лонгрид (развернутый репортаж)</option>
+              <option value="Ироничный обзор">Ироничный обзор (сатирический)</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">Размещение фото в статье</label>
+            <select name="image_layout"
+                    id="lab-image-layout-select"
+                    class="w-full box-border rounded-xl border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none font-medium truncate">
+              <option value="inline" selected>📸 По тексту статьи (равномерно)</option>
+              <option value="slideshow">🎠 Слайдшоу / Карусель лентой</option>
+              <option value="cover_only">🖼️ Только обложка (без фото в тексте)</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="block text-[11px] font-medium text-mac-secondary mb-1">Доп. указания модели (опционально)</label>
+            <input type="text" name="custom_instructions" placeholder="Например: акцент на дату премьеры"
+                   class="w-full box-border rounded-xl border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none truncate">
+          </div>
+        </div>
+
+        {# Editable prompt textarea bound to rubric #}
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+            <label class="block text-[11px] font-semibold text-mac-ink">Редактируемый промт стиля и рубрики</label>
+            <span id="lab-prompt-source-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-2xs
+              {% if cluster.prompt_source_label and 'рубрик' in cluster.prompt_source_label %}
+                bg-emerald-100 text-emerald-800 border border-emerald-300
+              {% else %}
+                bg-neutral-100 text-mac-secondary border border-neutral-200
+              {% endif %}">
+              {{ cluster.prompt_source_label or 'Системный эталон' }}
+            </span>
+          </div>
+          <textarea id="lab-prompt-override" name="prompt_override" rows="7"
+                    class="w-full box-border rounded-xl border border-black/[0.12] bg-white p-3 text-xs text-mac-ink font-mono focus:border-[#0071E3] focus:outline-none leading-relaxed shadow-2xs resize-y"
+                    placeholder="Введите или скорректируйте редакционный промт...">{{ cluster.prompt_template }}</textarea>
+          <div class="text-[10.5px] text-mac-secondary mt-1 flex items-center justify-between">
+            <span>💡 Промт сформирован системой эффективности для рубрики «{{ cluster.category_title }}» по стандарту «ДНК Победителей». Вы можете дополнить его или скорректировать перед запуском.</span>
+          </div>
+        </div>
+
+        <button type="submit"
+                class="rounded-xl bg-[#0071E3] text-white px-3.5 py-2 text-xs font-semibold hover:bg-[#0077ED] transition-colors flex items-center gap-1.5 shadow-xs">
+          <span>✨ Сгенерировать статью с перелинковкой</span>
+        </button>
+      </form>
+
+      <div id="step-3-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Генерация статьи, SEO/Wordstat и внутренняя перелинковка…</span>
+      </div>
+
+      <div id="step-generate-container">
+        {% if cluster.article %}
+          {% set title = cluster.article.title %}
+          {% set seo_title = cluster.seo_metadata.seo_title if cluster.seo_metadata else cluster.article.seo_title %}
+          {% set seo_description = cluster.article.seo_description %}
+          {% set seo_keywords = cluster.article.seo_keywords %}
+          {% set focus_keyword = cluster.seo_metadata.focus_keyword if cluster.seo_metadata else 'новости' %}
+          {% set wordstat_queries = cluster.wordstat_data %}
+          {% set llm_txt = cluster.seo_metadata.llm_txt if cluster.seo_metadata else '' %}
+          {% set internal_links = cluster.internal_links %}
+          {% set content_html = cluster.article.content_html %}
+          {% set article_id = cluster.article.id %}
+          {% set slop_clean = cluster.slop_report.is_valid if cluster.slop_report else True %}
+          {% set slop_density = cluster.slop_report.density if cluster.slop_report else 0.0 %}
+          {% set usage_stats = cluster.usage_stats %}
+          {% set aevi = cluster.aevi %}
+          {% set hypothesis = cluster.hypothesis %}
+          {% set dzen_preview_html = cluster.dzen_preview_html %}
+          {% set tg_caption = cluster.tg_caption %}
+          {% set tg_hashtags = cluster.tg_hashtags %}
+          {% set vk_wall_message = cluster.vk_wall_message %}
+          {% set cover_url = cluster.cover_url %}
+          {% set cluster_id = cluster.cluster_id %}
+          {% include "partials/lab_generate_result.html" %}
+        {% else %}
+          <div class="text-xs text-mac-secondary">
+            Нажмите кнопку «Сгенерировать статью», чтобы запустить AI-моделирование, SEO-оптимизацию и обязательную перелинковку с архивом.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# STEP 4: WordPress & Social Publication #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-[10px] font-bold">4</span>
+          <span class="text-xs font-semibold text-mac-ink">Публикация (Мультиканальная дистрибуция)</span>
+        </div>
+        <div class="text-[11px] text-mac-secondary font-mono">
+          WordPress REST API + Яндекс Дзен Студия
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {# Channel Card 1: WordPress #}
+        <div id="step-publish-wp-container" class="rounded-xl border border-black/[0.08] bg-white p-3.5 space-y-3 shadow-2xs flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-semibold text-xs text-mac-ink">
+                <span>🌐 Сайт издания (WordPress)</span>
+              </div>
+              {% if cluster.is_wp_published %}
+                <span class="mac-pill mac-pill-good text-[10px] font-semibold">✓ Опубликовано{% if cluster.wp_post_id %} #{{ cluster.wp_post_id }}{% endif %}</span>
+              {% elif cluster.wp_configured %}
+                <span class="mac-pill mac-pill-neutral text-[10px]">Подключён</span>
+              {% else %}
+                <span class="mac-pill mac-pill-warn text-[10px]">Не настроен</span>
+              {% endif %}
+            </div>
+
+            {% if not cluster.wp_configured %}
+              <p class="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200 leading-relaxed">
+                Сайт WordPress не подключён. Укажите Application Password в настройках для публикации.
+              </p>
+            {% elif cluster.is_wp_published %}
+              <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5">
+                <div class="font-medium">✓ Статья опубликована на сайте издания.</div>
+                {% if cluster.wp_post_url %}
+                  <a href="{{ cluster.wp_post_url }}" target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center gap-1 text-[#0071E3] font-semibold hover:underline">
+                    <span>Открыть публикацию на сайте ↗</span>
+                  </a>
+                {% endif %}
+              </div>
+            {% else %}
+              <p class="text-xs text-mac-secondary leading-relaxed">
+                Публикация через REST API: <span class="mono font-medium text-mac-ink">{{ cluster.wp_base_url or 'svodka.press' }}</span>. Будут переданы фото, теги, Rank Math SEO и микроразметка.
+              </p>
+            {% endif %}
+          </div>
+
+          <div class="pt-2 border-t border-black/[0.04] flex items-center justify-between gap-2">
+            <div id="step-wp-spinner" class="htmx-indicator text-[11px] text-mac-secondary flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>Публикуем на сайт…</span>
+            </div>
+
+            {% if cluster.wp_configured %}
+              <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/publish"
+                      hx-target="#step-publish-wp-container"
+                      hx-swap="innerHTML"
+                      hx-indicator="#step-wp-spinner"
+                      class="rounded-xl bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-emerald-700 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto">
+                <span>{% if cluster.is_wp_published %}🔄 Обновить на сайте{% else %}🌐 Опубликовать на сайт{% endif %}</span>
+              </button>
+            {% else %}
+              <a href="/settings"
+                 class="rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1 ml-auto">
+                <span>⚙️ Настроить сайт</span>
+              </a>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Channel Card 2: Yandex Dzen #}
+        <div id="step-publish-dzen-container" class="rounded-xl border border-black/[0.08] bg-white p-3.5 space-y-3 shadow-2xs flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-semibold text-xs text-mac-ink">
+                <span>📱 Яндекс Дзен Студия</span>
+              </div>
+              {% if cluster.is_dzen_published %}
+                <span class="mac-pill mac-pill-good text-[10px] font-semibold">✓ В Дзене{% if cluster.dzen_post_id %} #{{ cluster.dzen_post_id }}{% endif %}</span>
+              {% elif cluster.dzen_configured %}
+                <span class="mac-pill mac-pill-neutral text-[10px]">Сессия активна</span>
+              {% else %}
+                <span class="mac-pill mac-pill-warn text-[10px]">Сессия не настроена</span>
+              {% endif %}
+            </div>
+
+            {% if not cluster.dzen_configured %}
+              <p class="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200 leading-relaxed">
+                Сессия Дзена не настроена. Добавьте cookies / storage_state.json в настройках.
+              </p>
+            {% elif cluster.is_dzen_published %}
+              <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5">
+                <div class="font-medium">✓ Статья успешно отправлена в Яндекс Дзен!</div>
+                {% if cluster.dzen_post_url %}
+                  <a href="{{ cluster.dzen_post_url }}" target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center gap-1 text-orange-600 font-semibold hover:underline">
+                    <span>Открыть в Дзен Студии ↗</span>
+                  </a>
+                {% endif %}
+              </div>
+            {% else %}
+              <p class="text-xs text-mac-secondary leading-relaxed">
+                Публикация через Playwright Stealth в Дзен Студию с автоматической обложкой, нативной структурой Draft.js и ссылкой на первоисточник.
+              </p>
+            {% endif %}
+          </div>
+
+          <div class="pt-2 border-t border-black/[0.04] flex items-center justify-between gap-2">
+            <div id="step-dzen-spinner" class="htmx-indicator text-[11px] text-mac-secondary flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 animate-spin text-orange-600" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>Отправляем в Дзен…</span>
+            </div>
+
+            <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/publish-dzen"
+                    hx-target="#step-publish-dzen-container"
+                    hx-swap="innerHTML"
+                    hx-indicator="#step-dzen-spinner"
+                    class="rounded-xl bg-orange-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-orange-700 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto">
+              <span>{% if cluster.is_dzen_published %}🔄 Отправить повторно{% else %}📱 В Дзен Студию{% endif %}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        {% if cluster.style_prompts_json %}
+          window.labStylePrompts = {{ cluster.style_prompts_json | safe }};
+        {% endif %}
+
+        window.switchLabStyle = function(sel) {
+          if (!sel) return;
+          let prompts = window.labStylePrompts;
+          if (!prompts && sel.dataset && sel.dataset.prompts) {
+            try { prompts = JSON.parse(sel.dataset.prompts); } catch (e) {}
+          }
+          if (!prompts) return;
+          const ta = document.getElementById('lab-prompt-override');
+          if (ta && prompts[sel.value]) {
+            ta.value = prompts[sel.value];
+            const badge = document.getElementById('lab-prompt-source-badge');
+            if (badge) {
+              badge.textContent = 'Стиль: «' + sel.value + '»';
+              badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-2xs bg-blue-50 text-blue-700 border border-blue-200';
+            }
+          }
+        };
+
+        window.selectWebCover = function(btn, imgUrl) {
+          const hiddenInput = document.getElementById('lab-selected-cover-url');
+          if (hiddenInput) {
+            hiddenInput.value = imgUrl;
+          }
+          document.querySelectorAll('.web-img-card').forEach(function(card) {
+            card.classList.remove('ring-2', 'ring-[#0071E3]', 'border-transparent');
+          });
+          const card = btn.closest('.web-img-card');
+          if (card) {
+            card.classList.add('ring-2', 'ring-[#0071E3]', 'border-transparent');
+          }
+          document.querySelectorAll('.btn-select-cover').forEach(function(b) {
+            b.innerHTML = '<span>⭐ На обложку</span>';
+            b.classList.remove('bg-blue-50', 'text-[#0071E3]', 'border-blue-300');
+          });
+          btn.innerHTML = '<span>✓ Выбрано обложкой</span>';
+          btn.classList.add('bg-blue-50', 'text-[#0071E3]', 'border-blue-300');
+        };
+
+        // Auto-initialize if textarea is empty or has old stub
+        const ta = document.getElementById('lab-prompt-override');
+        const sel = document.getElementById('lab-style-select');
+        if (ta && sel && window.labStylePrompts) {
+          if (!ta.value || ta.value.indexOf('Строгий новостной стиль. Только сухие факты') !== -1 || ta.value.indexOf('Информационный стиль, сдержанный тон.') !== -1 || ta.value.trim().length < 60) {
+            ta.value = window.labStylePrompts[sel.value] || window.labStylePrompts['Информационный'] || '';
+          }
+        }
+      })();
+    </script>
+
+  </div>
+
+</div>

@@ -1,0 +1,684 @@
+{#
+  The run timeline. One card per stage, ordered as the pipeline executed them, so
+  an operator reads the run top to bottom the way it happened.
+
+  Details are rendered per stage rather than through one generic dump: the useful
+  evidence differs, and a shared renderer would flatten exactly what the page
+  exists to show.
+#}
+{% if error %}
+  <div role="alert" class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3
+                           text-sm text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+<section class="space-y-3">
+
+  <header class="flex flex-wrap items-center justify-between gap-3 rounded-lg border
+                 border-slate-800 bg-slate-900/60 px-4 py-3">
+    <div>
+      <div class="text-sm text-slate-200">
+        Прогон <span class="mono">{{ run.run_id }}</span>
+      </div>
+      <div class="mono mt-0.5 text-xs text-slate-500">
+        {{ run.started_at }} · {{ run.duration_ms }} мс ·
+        режим: {{ 'тестовый' if run.mode == 'test' else 'боевой' }}
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if run.tokens_spent %}
+        <span class="rounded bg-amber-950/60 px-2 py-0.5 text-xs text-amber-300"
+              title="В прогоне были платные вызовы модели">токены расходовались</span>
+      {% else %}
+        <span class="rounded bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300">
+          0 токенов
+        </span>
+      {% endif %}
+      <span class="rounded px-2 py-0.5 text-xs
+        {% if run.failed %}bg-rose-950/60 text-rose-300
+        {% else %}bg-emerald-950/60 text-emerald-300{% endif %}">
+        {{ 'есть ошибки' if run.failed else 'успех' }}
+      </span>
+    </div>
+  </header>
+
+  {% for stage in run.stages %}
+    {% set d = stage.details or {} %}
+    <article class="overflow-hidden rounded-lg border
+      {% if stage.outcome == 'failed' %}border-rose-900/60
+      {% elif stage.outcome == 'skipped' %}border-slate-800
+      {% else %}border-emerald-900/40{% endif %} bg-slate-900/60">
+
+      <header class="flex flex-wrap items-center justify-between gap-2 border-b
+                     border-slate-800 px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs
+            {% if stage.outcome == 'failed' %}bg-rose-950 text-rose-300
+            {% elif stage.outcome == 'skipped' %}bg-slate-800 text-slate-400
+            {% else %}bg-emerald-950 text-emerald-300{% endif %}">
+            {{ loop.index }}
+          </span>
+          <h3 class="text-sm font-medium text-slate-200">{{ stage.title }}</h3>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          {% if stage.model %}
+            <span class="mono rounded bg-slate-800 px-1.5 py-0.5 text-slate-300"
+                  title="Модель, обслужившая этап">{{ stage.model }}</span>
+          {% endif %}
+          <span class="mono text-slate-500">{{ stage.duration_ms }} мс</span>
+          <span class="rounded px-1.5 py-0.5
+            {% if stage.outcome == 'failed' %}bg-rose-950/60 text-rose-300
+            {% elif stage.outcome == 'skipped' %}bg-slate-800 text-slate-400
+            {% else %}bg-emerald-950/60 text-emerald-300{% endif %}">
+            {{ {'ok': 'выполнен', 'skipped': 'пропущен', 'failed': 'ошибка'}[stage.outcome] }}
+          </span>
+        </div>
+      </header>
+
+      <div class="space-y-3 px-4 py-3 text-sm">
+        <p class="{% if stage.outcome == 'failed' %}text-rose-200{% else %}text-slate-300{% endif %}">
+          {{ stage.summary }}
+        </p>
+
+        {% for warning in stage.warnings %}
+          <p class="text-xs text-amber-400/90">⚠ {{ warning }}</p>
+        {% endfor %}
+
+        {# ------------------------------------------------------ Сброс очереди #}
+        {% if stage.stage == 'reset' and d.total is defined %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-4">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">постов</dt>
+              <dd class="mono text-slate-300">{{ d.raw_news }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">кластеров</dt>
+              <dd class="mono text-slate-300">{{ d.clusters }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">каналов</dt>
+              <dd class="mono text-slate-300">{{ d.sources_rewound }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">ключей Redis</dt>
+              <dd class="mono text-slate-300">{{ d.redis_keys }}</dd>
+            </div>
+          </dl>
+          <p class="text-xs text-slate-600">{{ d.note }}</p>
+        {% endif %}
+
+        {# ---------------------------------------------------- Сбор новостей #}
+        {% if stage.stage == 'collect' and d.sources %}
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-500">
+              <tr>
+                <th class="py-1 text-left font-medium">Канал</th>
+                <th class="py-1 text-right font-medium">получено</th>
+                <th class="py-1 text-right font-medium">новых</th>
+                <th class="py-1 text-right font-medium">уже было</th>
+                <th class="py-1 text-right font-medium">дайджест</th>
+                <th class="py-1 text-right font-medium">реклама</th>
+                <th class="py-1 text-right font-medium">дубли</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              {% for source in d.sources %}
+                <tr>
+                  <td class="py-1 text-slate-300">{{ source.source_name }}</td>
+                  <td class="mono py-1 text-right text-slate-400">{{ source.fetched }}</td>
+                  <td class="mono py-1 text-right text-emerald-300">{{ source.inserted }}</td>
+                  <td class="mono py-1 text-right text-slate-500">
+                    {{ source.skipped_existing if source.skipped_existing is defined else '—' }}
+                  </td>
+                  <td class="mono py-1 text-right text-slate-500">
+                    {{ source.filtered_digest if source.filtered_digest is defined else '—' }}
+                  </td>
+                  <td class="mono py-1 text-right text-slate-500">
+                    {{ source.filtered_ad if source.filtered_ad is defined else '—' }}
+                  </td>
+                  <td class="mono py-1 text-right text-amber-300">{{ source.duplicates }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if d.note %}<p class="text-xs text-slate-600">{{ d.note }}</p>{% endif %}
+        {% endif %}
+
+        {# ----------------------------------------------------- Дедупликация #}
+        {% if stage.stage == 'dedup' and d.posts %}
+          <p class="text-xs text-slate-500">
+            Порог нового кластера &lt; {{ d.thresholds.lower }}, порог дубликата ≥
+            {{ d.thresholds.upper }}. Окно {{ d.window_hours }} ч.
+            {% if d.media_total is defined %}
+              Медиа во всей выборке: <span class="mono">{{ d.media_total }}</span>.
+            {% endif %}
+          </p>
+          {% if d.by_status %}
+            <div class="flex flex-wrap gap-1 text-xs">
+              {% for name, count in d.by_status.items() %}
+                <span class="rounded px-1.5 py-0.5
+                  {% if name == 'skipped_duplicate' %}bg-amber-950/60 text-amber-300
+                  {% elif name.startswith('filtered') %}bg-slate-800 text-slate-400
+                  {% elif name == 'unique' %}bg-emerald-950/60 text-emerald-300
+                  {% else %}bg-slate-800 text-slate-300{% endif %}">
+                  {{ name }}: {{ count }}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <div class="max-h-96 overflow-y-auto rounded border border-slate-800">
+            <table class="min-w-full text-xs">
+              <thead class="sticky top-0 bg-slate-900 text-slate-500">
+                <tr>
+                  <th class="px-2 py-1 text-left font-medium">Канал</th>
+                  <th class="px-2 py-1 text-left font-medium">Новость</th>
+                  <th class="px-2 py-1 text-left font-medium">Медиа</th>
+                  <th class="px-2 py-1 text-left font-medium">Вердикт</th>
+                  <th class="px-2 py-1 text-right font-medium">сходство</th>
+                  <th class="px-2 py-1 text-right font-medium">ур.</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                {% for post in d.posts %}
+                  <tr class="{% if post.status == 'skipped_duplicate' %}bg-amber-950/10{% endif %}">
+                    <td class="px-2 py-1 align-top text-slate-400">
+                      {{ post.source_name if post.source_name is defined else post.source_id }}
+                    </td>
+                    <td class="max-w-sm px-2 py-1 align-top">
+                      <div class="text-slate-300">{{ post.text }}</div>
+                      {% if post.cluster_id %}
+                        <div class="mono text-slate-600">
+                          кластер {{ post.cluster_id[:8] }}
+                        </div>
+                      {% endif %}
+                      {% if post.filter_reasons %}
+                        <div class="mono text-slate-600">
+                          правила: {{ post.filter_reasons | join(', ') }}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      {% if post.media %}
+                        <div class="space-y-0.5">
+                          {% for item in post.media %}
+                            <div class="mono text-slate-500">
+                              {{ item.type }}
+                              {%- if item.size %} · {{ item.size }} Б{% endif %}
+                              {%- if item.media_id %} · {{ item.media_id[:12] }}{% endif %}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <span class="text-slate-600">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="px-2 py-1 align-top
+                      {% if post.status == 'skipped_duplicate' %}text-amber-300
+                      {% elif post.status.startswith('filtered') %}text-slate-500
+                      {% else %}text-emerald-300{% endif %}">
+                      {{ post.verdict }}
+                    </td>
+                    <td class="mono px-2 py-1 text-right align-top text-slate-400">
+                      {{ '%.3f'|format(post.similarity) if post.similarity is not none else '—' }}
+                    </td>
+                    <td class="mono px-2 py-1 text-right align-top text-slate-500">
+                      {{ post.level if post.level is not none else '—' }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if d.note %}<p class="text-xs text-slate-600">{{ d.note }}</p>{% endif %}
+        {% endif %}
+
+        {# ------------------------------------------------ Вотермарки на медиа #}
+        {% if stage.stage == 'watermark' and d['items'] %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-4">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">чистых</dt>
+              <dd class="mono text-emerald-300">{{ d.clean }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">обрежется</dt>
+              <dd class="mono text-amber-300">{{ d.croppable }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">отсеяно</dt>
+              <dd class="mono text-rose-300">{{ d.rejected }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">не проверено</dt>
+              <dd class="mono text-slate-400">{{ d.unchecked }}</dd>
+            </div>
+          </dl>
+          <div class="max-h-96 overflow-y-auto rounded border border-slate-800">
+            <table class="min-w-full text-xs">
+              <thead class="sticky top-0 bg-slate-900 text-slate-500">
+                <tr>
+                  <th class="px-2 py-1 text-left font-medium">Канал</th>
+                  <th class="px-2 py-1 text-left font-medium">Пост</th>
+                  <th class="px-2 py-1 text-left font-medium">Вердикт</th>
+                  <th class="px-2 py-1 text-right font-medium">покрытие</th>
+                  <th class="px-2 py-1 text-left font-medium">распознано</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                {% for item in d['items'] %}
+                  <tr class="{% if item.verdict == 'rejected' %}bg-rose-950/10{% endif %}">
+                    <td class="px-2 py-1 align-top text-slate-400">{{ item.source_name }}</td>
+                    <td class="max-w-xs px-2 py-1 align-top">
+                      <div class="text-slate-300">{{ item.post_text }}</div>
+                      <div class="mono text-slate-600">
+                        {{ item.media_id[:14] if item.media_id else '—' }}
+                        {%- if item.bytes is defined %} · {{ item.bytes }} Б{% endif %}
+                      </div>
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      <span class="rounded px-1.5 py-0.5
+                        {% if item.verdict == 'clean' %}bg-emerald-950/60 text-emerald-300
+                        {% elif item.verdict == 'croppable' %}bg-amber-950/60 text-amber-300
+                        {% elif item.verdict == 'rejected' %}bg-rose-950/60 text-rose-300
+                        {% else %}bg-slate-800 text-slate-400{% endif %}">
+                        {{ {'clean': 'чистое', 'croppable': 'обрежется',
+                            'rejected': 'отсеяно', 'unchecked': 'не проверено'}[item.verdict] }}
+                      </span>
+                      <div class="mt-0.5 text-slate-500">{{ item.reason }}</div>
+                    </td>
+                    <td class="mono px-2 py-1 text-right align-top text-slate-400">
+                      {% if item.watermark %}
+                        {{ '%.0f'|format(item.watermark.coverage_ratio * 100) }}%
+                      {% else %}—{% endif %}
+                    </td>
+                    <td class="px-2 py-1 align-top">
+                      {% if item.watermark and item.watermark.detected_text %}
+                        <span class="mono text-rose-300/90">
+                          {{ item.watermark.detected_text | join(', ') }}
+                        </span>
+                      {% else %}
+                        <span class="text-slate-600">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-slate-600">{{ d.note }}</p>
+        {% endif %}
+
+        {# ----------------------------------------------------------- Кластер #}
+        {% if stage.stage == 'cluster' and d.posts %}
+          {% if d.chosen_by_operator %}
+            <p class="text-xs text-emerald-300/80">
+              Кластер выбран вручную из отчёта проверки, а не взят как самый свежий.
+            </p>
+          {% endif %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-3">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">рубрика</dt>
+              <dd class="text-slate-300">{{ d.category_title }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">риск</dt>
+              <dd class="mono text-slate-300">{{ d.risk_level }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">медиа</dt>
+              <dd class="mono text-slate-300">{{ d.media_total }}</dd>
+            </div>
+          </dl>
+          <div class="space-y-2">
+            {% for post in d.posts %}
+              <div class="rounded border border-slate-800 bg-slate-950/40 px-3 py-2">
+                <div class="mono text-xs text-slate-500">
+                  пост {{ post.external_post_id }} · источник {{ post.source_id }} ·
+                  медиа {{ post.media | length }}
+                </div>
+                <p class="mt-1 text-xs text-slate-300">{{ post.text }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {# --------------------------------------------------------- Модерация #}
+        {% if stage.stage == 'moderation' and d.category %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-3">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">рубрика</dt>
+              <dd class="text-slate-300">{{ d.category_title }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">риск</dt>
+              <dd class="rounded px-1.5 text-xs
+                {% if d.risk_level == 'green' %}bg-emerald-950/60 text-emerald-300
+                {% elif d.risk_level == 'yellow' %}bg-amber-950/60 text-amber-300
+                {% else %}bg-rose-950/60 text-rose-300{% endif %}">
+                {{ d.risk_level }}
+              </dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">генерация</dt>
+              <dd class="{% if d.blocks_generation %}text-rose-300{% else %}text-emerald-300{% endif %}">
+                {{ 'отброшено' if d.blocks_generation else 'разрешена' }}
+              </dd>
+            </div>
+          </dl>
+          <p class="text-xs text-slate-300">{{ d.reason }}</p>
+          {% if d.overridden %}
+            <p class="rounded border border-amber-900/60 bg-amber-950/20 px-3 py-2
+                      text-xs text-amber-200">
+              {{ d.override_note }} Модель предложила «{{ d.model_category }}».
+            </p>
+          {% endif %}
+          <details class="rounded border border-slate-800 bg-slate-950/40">
+            <summary class="cursor-pointer px-3 py-2 text-xs text-slate-400">
+              Промпт модератора
+            </summary>
+            <pre class="mono max-h-64 overflow-auto px-3 pb-3 text-xs text-slate-400
+                        whitespace-pre-wrap">{{ stage.prompt }}</pre>
+          </details>
+        {% endif %}
+
+        {# --------------------------------- Ресерч по всем кластерам (инспекция) #}
+        {% if stage.stage == 'research' and d.clusters %}
+          <p class="text-xs text-slate-500">
+            Кластеров за {{ d.window_hours }} ч: <span class="mono">{{ d.total_clusters }}</span>,
+            разобрано: <span class="mono">{{ d.described }}</span>.
+            Архив просматривается за {{ d.archive_days }} дней.
+          </p>
+          <div class="space-y-2">
+            {% for item in d.clusters %}
+              <details class="rounded border border-slate-800 bg-slate-950/40">
+                <summary class="cursor-pointer px-3 py-2">
+                  <span class="text-xs text-slate-300">{{ item.title }}</span>
+                  <span class="mono ml-2 text-xs text-slate-600">
+                    постов {{ item.posts }} · медиа {{ item.media | length }} ·
+                    фактов {{ item.facts | length }} ·
+                    архив {{ item.related_articles | length }}
+                  </span>
+                </summary>
+                <div class="space-y-2 px-3 pb-3">
+                  <div class="mono text-xs text-slate-600">
+                    {{ item.cluster_id[:8] }} · {{ item.category }} ·
+                    риск {{ item.risk_level }}
+                    {%- if item.sources %} · {{ item.sources | join(', ') }}{% endif %}
+                  </div>
+
+                  {% if item.facts %}
+                    <div>
+                      <div class="text-xs text-slate-500">Факты из постов</div>
+                      <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-300">
+                        {% for fact in item.facts %}<li>{{ fact }}</li>{% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+
+                  {% if item.texts %}
+                    <div>
+                      <div class="text-xs text-slate-500">Исходные тексты</div>
+                      <div class="mt-1 space-y-1">
+                        {% for text in item.texts %}
+                          <div class="rounded border border-slate-800 px-2 py-1">
+                            <div class="mono text-xs text-slate-600">
+                              {{ text.source_name }} · #{{ text.raw_news_id }}
+                            </div>
+                            <p class="text-xs text-slate-300">{{ text.text }}</p>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+
+                  {% if item.media %}
+                    <div>
+                      <div class="text-xs text-slate-500">Медиа кластера</div>
+                      <div class="mt-1 flex flex-wrap gap-1">
+                        {% for media in item.media %}
+                          <span class="mono rounded bg-slate-800 px-1.5 py-0.5 text-xs
+                                       text-slate-300">
+                            {{ media.type }}{% if media.size %} · {{ media.size }} Б{% endif %}
+                          </span>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+
+                  {% if item.related_articles %}
+                    <div>
+                      <div class="text-xs text-slate-500">
+                        Уже писали об этом (кандидаты на перелинковку)
+                      </div>
+                      <ul class="mt-1 space-y-1 text-xs">
+                        {% for related in item.related_articles %}
+                          <li class="flex flex-wrap items-center gap-2">
+                            <span class="mono text-slate-600">#{{ related.article_id }}</span>
+                            <span class="text-slate-300">{{ related.title }}</span>
+                            <span class="mono text-slate-600">
+                              совпадений: {{ related.overlap }} · {{ related.created_at }}
+                            </span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% else %}
+                    <p class="text-xs text-slate-500">
+                      В архиве похожих материалов нет — тема новая для сайта.
+                    </p>
+                  {% endif %}
+
+                  {#
+                    The handover from the free inspection to the paid stages. Having
+                    read the intake the operator picks the story worth paying for,
+                    rather than accepting whichever cluster happens to be newest.
+                    `collect=0`: the posts are already here, and re-collecting would
+                    add Telegram traffic for nothing.
+                  #}
+                  <div class="flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
+                    {% if item.is_published %}
+                      <span class="text-xs text-slate-500">
+                        По этому кластеру статья уже есть.
+                      </span>
+                    {% else %}
+                      <button hx-post="/api/ui/lab/run?collect=0&cluster={{ item.cluster_id }}"
+                              hx-confirm="Написать статью по этому кластеру? Модерация и генерация расходуют токены."
+                              hx-target="#lab-result"
+                              hx-swap="innerHTML"
+                              hx-disabled-elt="this"
+                              hx-indicator="#lab-spinner"
+                              class="rounded-md border border-amber-900/60 px-2.5 py-1 text-xs
+                                     text-amber-200 hover:border-amber-700
+                                     hover:text-amber-100 disabled:opacity-50">
+                        Написать статью
+                      </button>
+                      <span class="text-xs text-slate-600">
+                        платный шаг: модерация + генерация
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+              </details>
+            {% endfor %}
+          </div>
+          <p class="text-xs text-slate-600">{{ d.note }}</p>
+        {% endif %}
+
+        {# ------------------------------------- Ресерч одного кластера (прогон) #}
+        {% if stage.stage == 'research' and not d.clusters %}
+          {% if d.facts %}
+            <div>
+              <div class="text-xs text-slate-500">Собранные факты</div>
+              <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-300">
+                {% for fact in d.facts %}<li>{{ fact }}</li>{% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+          {% if d.related_articles %}
+            <div>
+              <div class="text-xs text-slate-500">
+                Похожие прошлые материалы (кандидаты на перелинковку)
+              </div>
+              <ul class="mt-1 space-y-1 text-xs">
+                {% for item in d.related_articles %}
+                  <li class="flex flex-wrap items-center gap-2">
+                    <span class="mono text-slate-600">#{{ item.article_id }}</span>
+                    <span class="text-slate-300">{{ item.title }}</span>
+                    <span class="mono text-slate-600">совпадений: {{ item.overlap }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <p class="text-xs text-slate-500">Похожих материалов в архиве не нашлось.</p>
+          {% endif %}
+          <p class="text-xs text-slate-600">{{ d.note }}</p>
+        {% endif %}
+
+        {# ------------------------------------------------------------ Статья #}
+        {% if stage.stage == 'article' and d.title %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-2">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">рубрика</dt>
+              <dd class="text-slate-300">{{ d.category_title }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">попыток генерации</dt>
+              <dd class="mono text-slate-300">{{ d.attempts }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">SEO title</dt>
+              <dd class="truncate text-slate-300">{{ d.seo_title }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">длина текста</dt>
+              <dd class="mono text-slate-300">{{ d.content_length }}</dd>
+            </div>
+          </dl>
+          <div>
+            <div class="text-xs text-slate-500">Теги (SEO keywords)</div>
+            <div class="mt-1 flex flex-wrap gap-1">
+              {% for keyword in d.seo_keywords %}
+                <span class="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-300">
+                  {{ keyword }}
+                </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% if d.interlink_candidates %}
+            <p class="text-xs {% if d.interlinks_embedded %}text-emerald-300{% else %}text-amber-300{% endif %}">
+              Перелинковка: кандидатов {{ d.interlink_candidates | length }}, вшито в
+              текст {{ d.interlinks_embedded | length }}.
+              {% if not d.interlinks_embedded %}
+                Ссылки в тело статьи пока не вставляются — этап перелинковки не
+                реализован.
+              {% endif %}
+            </p>
+          {% endif %}
+          <details class="rounded border border-slate-800 bg-slate-950/40">
+            <summary class="cursor-pointer px-3 py-2 text-xs text-slate-400">
+              Системный промпт, отправленный модели
+            </summary>
+            <pre class="mono max-h-64 overflow-auto px-3 pb-3 text-xs text-slate-400
+                        whitespace-pre-wrap">{{ stage.prompt }}</pre>
+          </details>
+          <details class="rounded border border-slate-800 bg-slate-950/40">
+            <summary class="cursor-pointer px-3 py-2 text-xs text-slate-400">
+              Готовая статья (HTML)
+            </summary>
+            <div class="prose prose-invert max-w-none px-3 pb-3 text-sm text-slate-300
+                        [&_h2]:mt-3 [&_h2]:text-base [&_h2]:text-white [&_li]:ml-4
+                        [&_ul]:list-disc">
+              {{ d.content_html | safe }}
+            </div>
+          </details>
+        {% endif %}
+
+        {# ------------------------------------------------------------- Медиа #}
+        {% if stage.stage == 'media' and d['items'] %}
+          <dl class="grid gap-1 text-xs sm:grid-cols-3">
+            <div class="flex gap-2">
+              <dt class="text-slate-500">фото</dt>
+              <dd class="mono text-slate-300">{{ d.photos }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">видео</dt>
+              <dd class="mono text-slate-300">{{ d.videos }}</dd>
+            </div>
+            <div class="flex gap-2">
+              <dt class="text-slate-500">повторов отброшено</dt>
+              <dd class="mono text-slate-300">{{ d.duplicates_skipped }}</dd>
+            </div>
+          </dl>
+          <table class="min-w-full text-xs">
+            <thead class="text-slate-500">
+              <tr>
+                <th class="py-1 text-left font-medium">media_id</th>
+                <th class="py-1 text-left font-medium">тип</th>
+                <th class="py-1 text-right font-medium">размер</th>
+                <th class="py-1 text-left font-medium">примечание</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              {% for item in d['items'] %}
+                <tr>
+                  <td class="mono py-1 text-slate-400">{{ item.media_id[:16] or '—' }}</td>
+                  <td class="py-1 text-slate-300">{{ item.type }}</td>
+                  <td class="mono py-1 text-right text-slate-500">{{ item.size or '—' }}</td>
+                  <td class="py-1 text-xs
+                    {% if item.duplicate_of_earlier %}text-amber-300{% else %}text-slate-500{% endif %}">
+                    {{ 'повтор кадра — пропущен' if item.duplicate_of_earlier else 'уникальный' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="text-xs text-slate-600">{{ d.watermark_check }}</p>
+        {% endif %}
+
+        {# ------------------------------------- Модули публикации (TG/Дзен/VK) #}
+        {% if stage.stage in ('telegram', 'vk') and d.text %}
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <span class="mono text-slate-400">
+              {{ d.length }}{% if d.limit %} / {{ d.limit }}{% endif %} символов
+            </span>
+            {% if d.hashtags %}
+              <span class="text-slate-500">хэштеги: {{ d.hashtags | join(' ') }}</span>
+            {% endif %}
+          </div>
+          <pre class="mono max-h-56 overflow-auto rounded border border-slate-800
+                      bg-slate-950/60 px-3 py-2 text-xs text-slate-300
+                      whitespace-pre-wrap">{{ d.text }}</pre>
+          <p class="text-xs text-slate-600">{{ d.posting }}</p>
+        {% endif %}
+
+        {% if stage.stage == 'dzen' %}
+          <div class="mono text-xs text-slate-400">
+            {{ d.length }} символов после фильтрации (из {{ d.source_length }})
+          </div>
+          <details class="rounded border border-slate-800 bg-slate-950/40">
+            <summary class="cursor-pointer px-3 py-2 text-xs text-slate-400">
+              HTML в разметке Дзена
+            </summary>
+            <pre class="mono max-h-56 overflow-auto px-3 pb-3 text-xs text-slate-400
+                        whitespace-pre-wrap">{{ d.html }}</pre>
+          </details>
+          <p class="text-xs text-slate-600">{{ d.posting }}</p>
+        {% endif %}
+
+        {% if stage.error %}
+          <pre class="mono overflow-auto rounded border border-rose-900/60 bg-rose-950/20
+                      px-3 py-2 text-xs text-rose-200 whitespace-pre-wrap">{{ stage.error }}</pre>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+
+  <button hx-get="/api/ui/lab/runs"
+          hx-target="#lab-result"
+          hx-swap="innerHTML"
+          class="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300
+                 hover:border-slate-500 hover:text-white">
+    ← К списку прогонов
+  </button>
+</section>
+{% endif %}

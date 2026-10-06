@@ -1,0 +1,225 @@
+# =============================================================================
+# Production deployment (VPS).
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Passing `-f` explicitly skips docker-compose.override.yml, so PostgreSQL and
+# Redis stay unpublished and are reachable only through the internal
+# `svodkapress_net` bridge. The app port is bound to loopback only, so a
+# host-level reverse proxy (nginx/Caddy) terminates TLS in front of it.
+#
+# Memory budget:
+#   postgres 1.5G | redis 768M | app 1.5G
+#   worker-ingestion 2G | worker-content 1G | worker-publisher 1G
+# Postgres is tuned to stay inside its limit: with max_connections=60 and
+# work_mem=8MB, worst-case per-connection sort memory stays well below the cap,
+# so the container is not OOM-killed into a restart loop.
+#
+# The three ARQ workers are first-class services rather than `docker exec -d`
+# processes inside the app container. Run that way they would be invisible to
+# `compose ps`, carry no restart policy, disappear for good on any app restart,
+# and compete with gunicorn for a single 1.5G cap that Chromium alone can fill.
+# =============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+# Each worker is the same image and environment as the app, differing only in the
+# command, so a worker can never run against a different build or config.
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+    target: runtime
+  image: svodkapress/app:latest
+  restart: unless-stopped
+  env_file:
+    - .env
+  environment:
+    APP_ENV: production
+    DEBUG: "false"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - app_logs:/app/logs
+    - ./secrets:/app/secrets:ro
+    - media_storage:/app/storage/media
+    - fastembed_cache:/app/storage/fastembed
+    - browser_profiles:/app/storage/browser_profiles
+  networks:
+    - svodkapress_net
+  logging: *default-logging
+
+services:
+  postgres:
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_connections=60
+      - -c
+      - shared_buffers=384MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - max_wal_size=1GB
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  redis:
+    restart: unless-stopped
+    # maxmemory is held well under the container limit so an AOF rewrite or
+    # BGSAVE fork has copy-on-write headroom instead of being OOM-killed.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-320mb}
+      - --maxmemory-policy
+      - noeviction
+      - --save
+      - "900"
+      - "1"
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      # uvicorn applies `X-Forwarded-Proto`/`-For` itself, before the app is
+      # entered, and reads its trusted sources from this variable. Sourced from
+      # TRUSTED_PROXY_HOSTS so there is one place to configure the proxy, and so
+      # the app-level and server-level views cannot drift apart.
+      FORWARDED_ALLOW_IPS: ${TRUSTED_PROXY_HOSTS:-127.0.0.1}
+    # Published on loopback for a reverse proxy on this host. For a proxy on a
+    # *different* host, set APP_BIND_ADDRESS=0.0.0.0 and restrict port 8000 in ufw
+    # to the proxy's address — binding wide without that firewall rule publishes
+    # the dashboard to the internet.
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_HOST_PORT:-8000}:8000"
+    command:
+      - gunicorn
+      - app.main:app
+      - --worker-class
+      - uvicorn.workers.UvicornWorker
+      - --workers
+      - "1"
+      - --bind
+      - 0.0.0.0:8000
+      - --timeout
+      - "180"
+      - --graceful-timeout
+      - "30"
+      - --keep-alive
+      - "5"
+      - --max-requests
+      - "2000"
+      - --max-requests-jitter
+      - "200"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  # Chromium lives here and nowhere else: only this worker scrapes. The 2G cap is
+  # the browser's, and isolating it means a runaway page cannot OOM the web tier.
+  worker-ingestion:
+    <<: *worker
+    container_name: svodkapress_worker_ingestion
+    command: [arq, app.workers.ingestion_worker.WorkerSettings]
+    # `arq --check` reads the `<queue>:health-check` key the worker itself
+    # refreshes from inside its main loop, with a TTL just past
+    # `health_check_interval`. So the key expires when the loop stops turning —
+    # a hung Chromium page or a blocking OCR call fails this, which a plain Redis
+    # ping from a separate process could not detect.
+    healthcheck:
+      test: [CMD, arq, app.workers.ingestion_worker.WorkerSettings, --check]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      # Chromium is launched eagerly at startup, so first boot is slower than the
+      # other two workers.
+      start_period: 90s
+    # Chromium needs more than the default 64MB of shared memory even with
+    # --disable-dev-shm-usage, and a crashed renderer otherwise surfaces as an
+    # unrelated navigation timeout.
+    shm_size: 512mb
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+
+  worker-content:
+    <<: *worker
+    container_name: svodkapress_worker_content
+    command: [arq, app.workers.content_worker.WorkerSettings]
+    healthcheck:
+      test: [CMD, arq, app.workers.content_worker.WorkerSettings, --check]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  worker-publisher:
+    <<: *worker
+    container_name: svodkapress_worker_publisher
+    command: [arq, app.workers.publisher_worker.WorkerSettings]
+    healthcheck:
+      test: [CMD, arq, app.workers.publisher_worker.WorkerSettings, --check]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  worker-lab:
+    <<: *worker
+    container_name: svodkapress_worker_lab
+    command: [arq, app.workers.lab_worker.WorkerSettings]
+    healthcheck:
+      test: [CMD, arq, app.workers.lab_worker.WorkerSettings, --check]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+

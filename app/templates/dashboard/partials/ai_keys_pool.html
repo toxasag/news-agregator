@@ -1,0 +1,400 @@
+{#
+  Apple macOS HIG: Multi-Provider AI Keys Pool Partial with Dynamic Model Discovery
+#}
+<div class="space-y-6">
+
+  {# Aggregated Bento Metrics Summary #}
+  {% set all_pools = pools or [] %}
+  {% set total_keys = all_pools | map(attribute='total_keys') | sum %}
+  {% set total_healthy = all_pools | map(attribute='healthy_keys') | sum %}
+  {% set total_cooldown = all_pools | map(attribute='cooldown_keys') | sum %}
+  {% set total_errors = all_pools | map(attribute='error_keys') | sum %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
+      <div class="text-[11px] font-medium text-mac-secondary uppercase tracking-wider">Всего ключей в пулах</div>
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-2xl font-bold text-mac-ink font-mono">{{ total_keys }}</span>
+        <span class="text-xs text-mac-secondary font-mono">без лимита</span>
+      </div>
+      <div class="mt-2 text-[11px] text-mac-secondary">Поддерживает любые пулы</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
+      <div class="text-[11px] font-medium text-mac-secondary uppercase tracking-wider">Рабочих (проверено)</div>
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-2xl font-bold text-emerald-600 font-mono">{{ total_healthy }}</span>
+      </div>
+      <div class="mt-2 text-[11px] text-emerald-700">Текст, Vision OCR, Эмбеддинги</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
+      <div class="text-[11px] font-medium text-mac-secondary uppercase tracking-wider">Кулдаун (429 Rate Limit)</div>
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-2xl font-bold {% if total_cooldown > 0 %}text-amber-600{% else %}text-mac-ink{% endif %} font-mono">
+          {{ total_cooldown }}
+        </span>
+      </div>
+      <div class="mt-2 text-[11px] text-mac-secondary">Авторотация на след. ключ</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
+      <div class="text-[11px] font-medium text-mac-secondary uppercase tracking-wider">Активные провайдеры</div>
+      <div class="mt-1 flex items-baseline gap-2">
+        <span class="text-2xl font-bold text-[#0071E3] font-mono">{{ all_pools | length }}</span>
+        <span class="text-xs text-mac-secondary">пул(ов)</span>
+      </div>
+      <div class="mt-2 text-[11px] text-mac-secondary">Gemini, OpenRouter и др.</div>
+    </div>
+  </div>
+
+  {# Global Batch Model Testing Toolbar #}
+  <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-black/[0.08] shadow-sm">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-semibold text-mac-ink">Массовое тестирование:</span>
+      <span class="text-xs text-mac-secondary">автоматическая параллельная проверка всех моделей на доступность</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button"
+              hx-post="/api/ui/ai/keys/test-all-models"
+              hx-target="#ai-keys-pool-container"
+              hx-swap="innerHTML show:none"
+              hx-disabled-elt="this"
+              class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Параллельно проверить абсолютно все обнаруженные модели всех активных провайдеров">
+        <span>⚡ Протестировать 100% моделей во всех пулах</span>
+      </button>
+      <button type="button"
+              hx-post="/api/ui/ai/keys/test-all"
+              hx-target="#ai-keys-pool-container"
+              hx-swap="innerHTML show:none"
+              hx-disabled-elt="this"
+              class="rounded-xl bg-white border border-black/[0.12] hover:bg-black/[0.03] text-mac-ink px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+        <span>🔄 Пинг всех ключей</span>
+      </button>
+    </div>
+  </div>
+
+  {# Notice / Alert banner if any #}
+  {% if alert_message %}
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm flex items-center justify-between text-xs animate-fadeIn">
+      <span class="text-mac-ink font-medium">{{ alert_message }}</span>
+      <span class="mac-pill mac-pill-blue">Готово</span>
+    </div>
+  {% endif %}
+
+  {# Provider Pools Collapsible Accordion #}
+  <div class="space-y-4">
+    {% for pool in all_pools %}
+      <details class="group rounded-2xl border border-black/[0.08] bg-white shadow-sm overflow-hidden" {% if pool.is_open %}open{% endif %}>
+        
+        {# Summary Header #}
+        <summary class="flex flex-wrap items-center justify-between p-5 cursor-pointer list-none select-none hover:bg-black/[0.01] transition-colors border-b border-black/[0.06]">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-2xs"
+                 style="background-color: {{ pool.color }};">
+              {{ pool.badge[:2] }}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-sm font-semibold text-mac-ink">{{ pool.name }}</h3>
+                {% if pool.endpoint_url %}
+                  <a href="{{ pool.endpoint_url }}" target="_blank" rel="noopener noreferrer"
+                     onclick="event.stopPropagation();"
+                     class="text-[11px] font-mono text-mac-secondary hover:text-[#0071E3] hover:underline flex items-center gap-1"
+                     title="Эндпоинт провайдера">
+                    {{ pool.endpoint_url }}
+                    <svg class="w-2.5 h-2.5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                  </a>
+                {% endif %}
+                <span class="mac-pill mac-pill-neutral text-[10px] font-mono">{{ pool.total_keys }} кл.</span>
+                {% if pool.healthy_keys > 0 %}
+                  <span class="mac-pill mac-pill-good text-[10px]">{{ pool.healthy_keys }} раб.</span>
+                {% endif %}
+                {% if pool.cooldown_keys > 0 %}
+                  <span class="mac-pill mac-pill-warn text-[10px]">{{ pool.cooldown_keys }} кд</span>
+                {% endif %}
+                {% if pool.error_keys > 0 %}
+                  <span class="mac-pill mac-pill-danger text-[10px]">{{ pool.error_keys }} ош.</span>
+                {% endif %}
+              </div>
+              <p class="text-xs text-mac-secondary mt-0.5 line-clamp-1 max-w-xl">
+                {{ pool.description }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            {% if pool.total_keys > 0 %}
+              {% if pool.key_list and pool.key_list[0] %}
+                <button type="button"
+                        hx-post="/api/ui/ai/keys/{{ pool.key_list[0].id }}/test-all-models"
+                        hx-target="#ai-keys-pool-container"
+                        hx-swap="innerHTML show:none"
+                        hx-disabled-elt="this"
+                        onclick="event.stopPropagation();"
+                        class="rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Проверить 100% моделей этого пула параллельно">
+                  <span>⚡ Тест 100%</span>
+                </button>
+                <button type="button"
+                        hx-post="/api/ui/ai/keys/{{ pool.key_list[0].id }}/test-top-models"
+                        hx-target="#ai-keys-pool-container"
+                        hx-swap="innerHTML show:none"
+                        hx-disabled-elt="this"
+                        onclick="event.stopPropagation();"
+                        class="rounded-xl bg-white border border-black/[0.12] px-2.5 py-1.5 text-xs font-semibold text-mac-ink hover:bg-black/[0.03] shadow-2xs transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Проверить первые 5 моделей пула">
+                  <span>🧪 Топ-5</span>
+                </button>
+              {% endif %}
+              <button type="button"
+                      hx-post="/api/ui/ai/keys/test-all"
+                      hx-vals='{"provider_name": "{{ pool.provider_name }}", "custom_name": "{{ pool.custom_name or '' }}"}'
+                      hx-target="#ai-keys-pool-container"
+                      hx-swap="innerHTML show:none"
+                      hx-disabled-elt="this"
+                      onclick="event.stopPropagation();"
+                      class="rounded-xl bg-white border border-black/[0.12] px-3 py-1.5 text-xs font-semibold text-mac-ink hover:bg-black/[0.03] shadow-2xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                <span>⚡ Пинг</span>
+              </button>
+            {% endif %}
+            <svg class="w-4 h-4 text-mac-secondary transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </summary>
+
+        {# Pool Body #}
+        <div class="p-5 space-y-5 bg-[#FAFAFA]/40">
+          
+          {# Batch Add Form for this specific provider #}
+          <div class="rounded-xl border border-black/[0.06] bg-white p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-semibold text-mac-ink">Добавить ключи в пул {{ pool.short_name }}</h4>
+                <p class="text-[11px] text-mac-secondary">
+                  Вставьте любое количество API-ключей (без ограничений), по одному на строку. Шифруются Fernet.
+                </p>
+              </div>
+              <span class="mac-pill mac-pill-blue text-[10px]">Шифрование Fernet</span>
+            </div>
+
+            <form hx-post="/api/ui/ai/batch-add"
+                  hx-target="#ai-keys-pool-container"
+                  hx-swap="innerHTML"
+                  class="space-y-3">
+              <input type="hidden" name="provider_name" value="{{ pool.provider_name }}">
+              {% if pool.provider_name == 'custom' %}
+                <input type="hidden" name="custom_name" value="{{ pool.custom_name or '' }}">
+                <input type="hidden" name="base_url" value="{{ pool.endpoint_url or '' }}">
+              {% endif %}
+
+              <textarea name="raw_keys" rows="2"
+                        placeholder="{{ pool.placeholder }}"
+                        class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] p-2.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none"></textarea>
+
+              <div class="flex items-center justify-between">
+                <button type="submit"
+                        class="rounded-xl bg-[#0071E3] text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs">
+                  + Добавить ключи в пул {{ pool.short_name }}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {# Keys List for this provider #}
+          {% if not pool.key_list %}
+            <div class="rounded-xl border border-dashed border-black/[0.12] bg-white p-6 text-center text-xs text-mac-secondary">
+              В пуле {{ pool.short_name }} пока нет сохраненных ключей. Вставьте ключи выше для запуска.
+            </div>
+          {% else %}
+            <div class="space-y-2">
+              {% for k in pool.key_list %}
+                <div class="rounded-xl border border-black/[0.06] bg-white p-3.5 text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs hover:border-black/[0.12] transition-colors">
+                  
+                  {# Key info & Status #}
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono font-semibold text-mac-ink text-[13px]">{{ k.masked_key }}</span>
+                      
+                      {% if k.in_cooldown %}
+                        <span class="mac-pill mac-pill-warn text-[10px]">
+                          Кулдаун {{ k.cooldown_remaining }}с (429)
+                        </span>
+                      {% elif k.health == "healthy" %}
+                        <span class="mac-pill mac-pill-good text-[10px]">Готов к работе</span>
+                      {% elif k.health == "error" %}
+                        <span class="mac-pill mac-pill-danger text-[10px]">Ошибка API</span>
+                      {% else %}
+                        <span class="mac-pill mac-pill-neutral text-[10px]">Не проверен</span>
+                      {% endif %}
+                    </div>
+
+                    <div class="text-[11px] text-mac-secondary flex flex-wrap items-center gap-2">
+                      <span>Проверка: {{ k.last_checked_at }}</span>
+                      {% if k.models_count > 0 %}
+                        <span>• {{ k.models_count }} моделей доступно</span>
+                      {% endif %}
+                      {% if k.last_error %}
+                        <div class="w-full mt-1">
+                          <span class="inline-block text-rose-600 bg-rose-50/80 border border-rose-200/90 rounded-md px-2 py-0.5 text-[11px] leading-relaxed break-words">
+                            ⚠️ {{ k.last_error }}
+                          </span>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {# Capabilities badges #}
+                  <div class="flex items-center gap-1.5">
+                    <span class="mac-pill {% if k.capabilities.text %}mac-pill-good{% else %}mac-pill-neutral{% endif %} text-[11px]"
+                          title="Генерация текста и статей">
+                      💬 Текст
+                    </span>
+                    <span class="mac-pill {% if k.capabilities.vision %}mac-pill-good{% else %}mac-pill-neutral{% endif %} text-[11px]"
+                          title="Распознавание медиа и OCR">
+                      👁️ Vision OCR
+                    </span>
+                    <span class="mac-pill {% if k.capabilities.embeddings %}mac-pill-good{% else %}mac-pill-neutral{% endif %} text-[11px]"
+                          {% if not k.capabilities.embeddings %}title="Эмбеддинги рассчитываются через локальный fastembed (zero-cost)"{% endif %}>
+                      🧠 Эмбеддинги
+                    </span>
+                  </div>
+
+                  {# Actions #}
+                  <div class="flex items-center gap-2">
+                    <button hx-post="/api/ui/ai/keys/{{ k.id }}/test"
+                            hx-target="#ai-keys-pool-container"
+                            hx-swap="innerHTML show:none"
+                            class="rounded-lg bg-[#FAFAFA] border border-black/[0.12] px-2.5 py-1 text-[11px] font-medium text-mac-ink hover:bg-black/[0.04] transition-colors">
+                      ⚡ Тест ключа
+                    </button>
+                    <button hx-delete="/api/ui/ai/keys/{{ k.id }}"
+                            hx-target="#ai-keys-pool-container"
+                            hx-swap="innerHTML show:none"
+                            hx-confirm="Удалить этот ключ из пула?"
+                            class="rounded-lg text-rose-600 hover:bg-rose-50 px-2 py-1 text-[11px] font-medium transition-colors">
+                      Удалить
+                    </button>
+                  </div>
+
+                  {# Working models and discovered models section #}
+                  <div class="w-full pt-2.5 mt-1 border-t border-black/[0.04] flex flex-col gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-[11px] font-semibold text-mac-ink">Работающие модели:</span>
+                      {% if k.working_models %}
+                        {% for wm in k.working_models %}
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-mono text-[11px] font-medium"
+                                title="Модель проверена и активна">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            {{ wm }}
+                            <span class="text-[10px] text-emerald-600 font-normal">✓ работает</span>
+                          </span>
+                        {% endfor %}
+                      {% elif k.health == 'healthy' %}
+                        <span class="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Стандартные модели доступны
+                        </span>
+                      {% elif k.health == 'error' %}
+                        <span class="text-[11px] text-rose-600 font-medium">✗ Ошибка тестирования</span>
+                      {% else %}
+                        <span class="text-[11px] text-mac-secondary italic">Нажмите «⚡ Тест ключа» для проверки</span>
+                      {% endif %}
+                    </div>
+
+                    {% if k.all_models %}
+                      <details class="group/models relative w-full mt-1">
+                        <summary class="cursor-pointer text-[11px] font-medium text-[#0071E3] hover:underline list-none flex items-center gap-1 select-none py-1">
+                          <span>Все обнаруженные модели ({{ k.models_count }})</span>
+                          <svg class="w-3 h-3 transition-transform group-open/models:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </summary>
+                        <div class="mt-2 p-2 bg-black/[0.02] rounded-xl border border-black/[0.06] max-h-64 overflow-y-auto space-y-1 font-mono text-[11px] w-full">
+                          {% for m in k.all_models %}
+                            {% include "partials/ai_model_row.html" %}
+                          {% endfor %}
+                        </div>
+                      </details>
+                    {% endif %}
+                  </div>
+
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+        </div>
+      </details>
+    {% endfor %}
+  </div>
+
+  {# Add New Provider Pool Card #}
+  <div class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-4">
+    <div class="border-b border-black/[0.06] pb-3">
+      <h3 class="text-sm font-semibold text-mac-ink">+ Подключить дополнительного провайдера</h3>
+      <p class="text-xs text-mac-secondary">
+        Выберите сервис (OpenRouter, OpenAI, Anthropic Claude, DeepSeek, Fal AI или локальный сервер), чтобы создать для него отдельный пул.
+      </p>
+    </div>
+
+    <form hx-post="/api/ui/ai/batch-add"
+          hx-target="#ai-keys-pool-container"
+          hx-swap="innerHTML"
+          class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-mac-ink mb-1">Провайдер ИИ</label>
+          <select name="provider_name" id="new-provider-select"
+                  onchange="toggleProviderInputs(this.value)"
+                  class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs font-medium text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+            <option value="custom" selected>Кастомный OpenAI-шлюз (vLLM, Ollama, LiteLLM)</option>
+            <option value="openrouter">OpenRouter (Claude 3.5, GPT-4o, DeepSeek)</option>
+            <option value="openai">OpenAI (Direct API)</option>
+            <option value="anthropic">Anthropic Claude (Direct API)</option>
+            <option value="deepseek">DeepSeek (Direct API)</option>
+            <option value="fal">Fal AI (Flux / Imagen Media)</option>
+            <option value="google">Google Gemini (AI Studio)</option>
+          </select>
+        </div>
+
+        <div id="new-custom-name-wrapper">
+          <label class="block text-xs font-semibold text-mac-ink mb-1">Название провайдера</label>
+          <input type="text" name="custom_name" placeholder="Например: vsllm.cc или Мой vLLM"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+
+        <div id="new-base-url-wrapper">
+          <label class="block text-xs font-semibold text-mac-ink mb-1">Base URL эндпоинта</label>
+          <input type="url" name="base_url" placeholder="https://vsllm.cc/v1"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-mac-ink mb-1">API-ключи (по одному на строку)</label>
+        <textarea name="raw_keys" rows="2"
+                  placeholder="Вставьте ключи провайдера..."
+                  class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] p-3 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none"></textarea>
+      </div>
+
+      <button type="submit"
+              class="rounded-xl bg-[#0071E3] text-white px-4 py-2 text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs">
+        Создать пул и сохранить ключи
+      </button>
+    </form>
+
+    <script>
+      function toggleProviderInputs(val) {
+        var isCustom = (val === 'custom');
+        var nameWrap = document.getElementById('new-custom-name-wrapper');
+        var urlWrap = document.getElementById('new-base-url-wrapper');
+        if (nameWrap) nameWrap.style.display = isCustom ? 'block' : 'none';
+        if (urlWrap) {
+          urlWrap.style.display = (isCustom || val === 'openai' || val === 'deepseek') ? 'block' : 'none';
+        }
+      }
+    </script>
+  </div>
+
+</div>

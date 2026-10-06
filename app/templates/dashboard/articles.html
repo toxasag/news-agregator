@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Редакционный стол{% endblock %}
+{% block container_class %}w-full max-w-[1680px]{% endblock %}
+{% block heading %}Редакционный стол и материалы{% endblock %}
+{% block subheading %}
+  {{ total_count }} инфоповод(ов) в системе. Клик по строке открывает сплит-инспектор статьи и ручные действия.
+{% endblock %}
+
+{% block actions %}
+  <div class="flex items-center gap-2.5">
+    <button
+      hx-post="/api/ui/articles/publish-ready"
+      hx-target="#trigger-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="this"
+      hx-indicator="#trigger-spinner"
+      class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer">
+      <span>🚀 Опубликовать готовые сейчас</span>
+    </button>
+    <button
+      hx-post="/api/ui/ingestion/run"
+      hx-confirm="Запустить внеочередной сбор свежих новостей из Telegram?"
+      hx-target="#trigger-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="this"
+      hx-indicator="#trigger-spinner"
+      class="btn btn-primary shadow-sm">
+      <svg class="w-3.5 h-3.5 opacity-80 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      Собрать новости
+    </button>
+    <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/[0.04] text-[11.5px] text-mac-secondary font-medium select-none"
+         title="Таблица автоматически обновляется каждые 12 секунд">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span>Автообновление (12с)</span>
+    </div>
+    <span id="trigger-spinner" class="htmx-indicator inline-flex items-center gap-1.5 text-xs text-mac-secondary">
+      <span class="w-2 h-2 rounded-full bg-mac-blue animate-ping"></span>
+      выполняется…
+    </span>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="trigger-result" class="mb-3 text-xs text-mac-secondary"></div>
+
+  {# Apple Bento Filter Strip #}
+  <form id="article-filters"
+        class="card p-4 mb-5 flex flex-wrap items-end gap-3.5 shadow-sm"
+        hx-get="/api/ui/articles/table"
+        hx-target="#articles-block"
+        hx-swap="innerHTML"
+        hx-trigger="change, submit, keyup changed delay:400ms from:#search">
+    
+    <div>
+      <label for="status" class="block text-[11px] font-medium text-mac-secondary mb-1">Статус материала</label>
+      <select id="status" name="status"
+              class="field py-1.5 px-3 text-[13px] min-w-[170px]">
+        <option value="">Все статусы</option>
+        {% for status in statuses %}
+          <option value="{{ status }}"
+                  {% if status == status_filter %}selected{% endif %}>
+            {% if status == 'media_ready' %}Ожидает проверки (Готов)
+            {% elif status == 'wp_published' %}Опубликован на сайте
+            {% elif status == 'distributed' %}Распространен везде
+            {% elif status == 'draft' %}Черновик
+            {% elif status == 'failed' %}Ошибка публикации
+            {% else %}{{ status }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="category" class="block text-[11px] font-medium text-mac-secondary mb-1">Рубрика</label>
+      <select id="category" name="category"
+              class="field py-1.5 px-3 text-[13px] min-w-[150px]">
+        <option value="">Все рубрики</option>
+        {% for slug in categories %}
+          <option value="{{ slug }}"
+                  {% if slug == category_filter %}selected{% endif %}>
+            {{ category_title(slug) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="period" class="block text-[11px] font-medium text-mac-secondary mb-1">Период</label>
+      <select id="period" name="period"
+              class="field py-1.5 px-3 text-[13px]">
+        <option value="24h" {% if period_filter == '24h' %}selected{% endif %}>24 часа</option>
+        <option value="3d"  {% if period_filter == '3d'  %}selected{% endif %}>3 дня</option>
+        <option value="all" {% if period_filter == 'all' %}selected{% endif %}>Все время</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="media" class="block text-[11px] font-medium text-mac-secondary mb-1">Обложка</label>
+      <select id="media" name="media"
+              class="field py-1.5 px-3 text-[13px]">
+        <option value="">Любая</option>
+        <option value="yes" {% if media_filter == 'yes' %}selected{% endif %}>С обложкой</option>
+        <option value="no"  {% if media_filter == 'no'  %}selected{% endif %}>Без обложки</option>
+      </select>
+    </div>
+
+    <div class="flex-1 min-w-[200px]">
+      <label for="search" class="block text-[11px] font-medium text-mac-secondary mb-1">Поиск по заголовку</label>
+      <div class="relative">
+        <input id="search" name="search" type="search" value="{{ search }}"
+               placeholder="Поиск по инфоповодам…"
+               class="field py-1.5 pl-8 pr-3 text-[13px] w-full">
+        <svg class="w-3.5 h-3.5 text-mac-secondary absolute left-2.5 top-2.5 opacity-60 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>
+        </svg>
+      </div>
+    </div>
+
+    <input type="hidden" name="page" value="1">
+  </form>
+
+  {# Auto-refreshable articles block #}
+  <div id="articles-block"
+       hx-get="/api/ui/articles/table"
+       hx-trigger="every 12s, refreshArticles from:body"
+       hx-include="#article-filters"
+       hx-swap="innerHTML">
+    {% include "partials/articles_block.html" %}
+  </div>
+
+  {# The preview modal container: Apple frosted sheet #}
+  <div id="article-modal" class="fixed inset-0 z-50 hidden bg-black/40 backdrop-blur-md overflow-y-auto p-4 sm:p-6 flex items-center justify-center"></div>
+
+  <script>
+    // Pause auto-refresh when the article preview modal is open or search is focused
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+      if (evt.detail.elt && evt.detail.elt.id === 'articles-block') {
+        const modal = document.getElementById('article-modal');
+        if (modal && !modal.classList.contains('hidden') && modal.innerHTML.trim() !== '') {
+          evt.preventDefault();
+        }
+        const searchInput = document.getElementById('search');
+        if (searchInput && document.activeElement === searchInput) {
+          evt.preventDefault();
+        }
+      }
+    });
+
+    // Dismiss modal on backdrop click or Escape key
+    (function() {
+      const modal = document.getElementById('article-modal');
+      if (!modal) return;
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+          this.classList.add('hidden');
+          this.innerHTML = '';
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+          modal.classList.add('hidden');
+          modal.innerHTML = '';
+        }
+      });
+
+      // Safety guard: never show an empty blurred overlay
+      const observer = new MutationObserver(function() {
+        if (modal.innerHTML.trim() === '') {
+          modal.classList.add('hidden');
+        }
+      });
+      observer.observe(modal, { childList: true });
+    })();
+  </script>
+{% endblock %}

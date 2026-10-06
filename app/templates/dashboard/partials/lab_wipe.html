@@ -1,0 +1,24 @@
+{% if error %}
+  <p class="rounded border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-sm text-rose-200">{{ error }}</p>
+{% elif report %}
+  <section class="rounded border border-rose-900/60 bg-rose-950/20 p-4 text-sm">
+    <h3 class="font-medium text-rose-100">Полная очистка: предварительный просмотр</h3>
+    <p class="mt-2 text-slate-300">Будет очищена локальная тестовая база <span class="mono">{{ report.target_database }}</span> на <span class="mono">{{ report.target_host }}</span>.</p>
+    <ul class="mt-3 grid gap-2 text-slate-300 sm:grid-cols-2">
+      <li>Статей: {{ report.articles }}</li>
+      <li>Кластеров: {{ report.clusters }}</li>
+      <li>Исходных постов: {{ report.raw_news }}</li>
+      <li>Журналов: {{ report.journals }}</li>
+      <li>Каталогов прогонов: {{ report.run_directories }}</li>
+      <li>Источников с водяным знаком: {{ report.sources_rewound }}</li>
+    </ul>
+    <p class="mt-3 text-xs text-slate-400">Сохранятся: {{ report.preserved | join(', ') }}. Redis будет очищен только по ключам дедупликации и кулдаунов моделей.</p>
+    <button hx-post="/api/ui/lab/wipe?confirm=1"
+            hx-confirm="Безвозвратно удалить перечисленные статьи, кластеры, посты и журналы из указанной тестовой базы? Источники и настройки останутся."
+            hx-target="#lab-wipe-result"
+            hx-swap="innerHTML"
+            class="mt-4 rounded bg-rose-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600">
+      Подтвердить полную очистку
+    </button>
+  </section>
+{% endif %}

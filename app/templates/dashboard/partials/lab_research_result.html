@@ -1,0 +1,152 @@
+{#
+  Apple macOS HIG: Research Step Result (Facts, Web Research & Archive Interlinks)
+#}
+<div class="space-y-3.5">
+
+  {# Summary Badges Bar #}
+  <div class="flex flex-wrap items-center justify-between gap-1.5 border-b border-black/[0.06] pb-2.5">
+    <div class="flex flex-wrap items-center gap-1.5">
+      {% if web_sources %}
+        <span class="mac-pill mac-pill-good font-semibold text-[10px]">
+          🌐 Веб-источников: {{ web_sources | length }}
+        </span>
+      {% endif %}
+      <span class="mac-pill mac-pill-blue font-medium text-[10px]">
+        ✓ Фактов: {{ facts | length }}
+      </span>
+      {% if related_articles %}
+        <span class="mac-pill mac-pill-neutral font-medium text-[10px]">
+          🔗 Архив: {{ related_articles | length }}
+        </span>
+      {% endif %}
+    </div>
+
+    {% if search_query %}
+      <div class="text-[10px] text-mac-secondary font-mono truncate max-w-[200px]" title="{{ search_query }}">
+        🔍 {{ search_query }}
+      </div>
+    {% endif %}
+  </div>
+
+  {# External Web Research Section #}
+  {% if web_sources %}
+    <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+          <span>🌐 Внешние источники из интернета ({{ web_sources | length }})</span>
+          <span class="rounded-md bg-blue-100 px-1.5 py-0.5 text-[9px] text-blue-700 font-mono">DuckDuckGo + Trafilatura</span>
+        </span>
+      </div>
+
+      <div class="space-y-2">
+        {% for src in web_sources %}
+          <div class="rounded-lg bg-white border border-blue-200/60 p-2.5 text-xs shadow-2xs space-y-1.5">
+            <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="font-bold text-mac-ink truncate max-w-[260px]">{{ src.title }}</span>
+                {% if src.relevance_score is defined and src.relevance_score is not none %}
+                  <span class="mac-pill {% if src.relevance_score >= 0.6 %}mac-pill-good{% else %}mac-pill-warn{% endif %} text-[9px] font-semibold shrink-0">
+                    {% if src.relevance_score >= 0.6 %}✓ В тему ({{ (src.relevance_score * 100)|int }}%){% else %}⚠️ Контекст ({{ (src.relevance_score * 100)|int }}%){% endif %}
+                  </span>
+                {% endif %}
+              </div>
+              <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer"
+                 class="text-[#0071E3] hover:underline font-mono text-[10px] flex items-center gap-0.5 shrink-0">
+                <span>{{ src.domain }}</span>
+                <span>↗</span>
+              </a>
+            </div>
+
+            {% if src.snippet %}
+              <p class="text-mac-secondary text-[11px] leading-relaxed line-clamp-2">
+                {{ src.snippet }}
+              </p>
+            {% endif %}
+
+            {% if src.key_facts %}
+              <div class="pt-1 border-t border-black/[0.04] space-y-1">
+                {% for kf in src.key_facts[:2] %}
+                  <div class="text-[10px] text-mac-ink flex items-start gap-1">
+                    <span class="text-blue-500 font-bold">•</span>
+                    <span class="leading-tight">{{ kf }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    {# Helpful banner when web research has not run or yielded no external sources #}
+    <div class="rounded-xl border border-blue-200/80 bg-blue-50/60 p-3 text-xs text-blue-900 space-y-1.5 shadow-2xs">
+      <div class="flex items-center gap-1.5 font-semibold text-blue-900">
+        <span>🌐 Внешнее исследование в сети СМИ</span>
+        {% if search_query %}
+          <span class="mac-pill mac-pill-neutral text-[9px] font-mono">Запрос: {{ search_query }}</span>
+        {% endif %}
+      </div>
+      <p class="text-[11px] text-blue-800/90 leading-relaxed">
+        {% if search_query %}
+          Поисковый запрос выполнен, но внешние публикации СМИ не прошли фильтр релевантности. Нажмите кнопку «🌐 Исследовать в сети» для повторного поиска с расширенным контекстом.
+        {% else %}
+          Внешнее исследование по СМИ еще не запускалось. Нажмите кнопку <strong>«🌐 Исследовать в сети»</strong> вверху справа, чтобы система нашла первоисточники через DuckDuckGo, выгрузила цитаты спикеров и репортажные фото.
+        {% endif %}
+      </p>
+    </div>
+  {% endif %}
+
+  {# Context & Background Facts from Web #}
+  {% if web_facts %}
+    <div class="space-y-1.5">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <span>Контекст и предыстория из сети ({{ web_facts | length }})</span>
+      </div>
+      <ul class="space-y-1.5 text-xs text-mac-ink">
+        {% for wf in web_facts %}
+          <li class="flex items-start gap-2 bg-[#FAFAFA] rounded-xl border border-black/[0.04] p-2.5">
+            <span class="text-[#0071E3] font-bold">🌐</span>
+            <span class="leading-relaxed text-[11px]">{{ wf }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {# Telegram Source Facts #}
+  <div>
+    <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider mb-1.5">
+      Факты из первоисточника (Telegram: {{ facts | length }})
+    </div>
+    {% if not facts %}
+      <div class="text-xs text-mac-secondary italic">Факты не выделены.</div>
+    {% else %}
+      <ul class="space-y-1.5 text-xs text-mac-ink">
+        {% for fact in facts %}
+          <li class="flex items-start gap-2 bg-[#FAFAFA] rounded-xl border border-black/[0.04] p-2.5">
+            <span class="text-emerald-600 font-bold">✓</span>
+            <span class="leading-relaxed text-[11px]">{{ fact }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  {# Related Archive Articles for Interlinking #}
+  {% if related_articles %}
+    <div>
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider mb-1.5">
+        Связи с архивом сайта ({{ related_articles | length }})
+      </div>
+      <div class="space-y-1.5">
+        {% for rel in related_articles %}
+          <div class="flex items-center justify-between rounded-xl bg-white border border-black/[0.06] p-2.5 text-xs shadow-2xs">
+            <span class="font-medium text-mac-ink truncate max-w-[280px]">{{ rel.title }}</span>
+            <span class="mac-pill mac-pill-blue text-[10px] shrink-0">Совпадение {{ rel.overlap }} слов</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+</div>

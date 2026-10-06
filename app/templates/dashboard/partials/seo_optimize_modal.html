@@ -1,0 +1,145 @@
+<div id="seo-optimize-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+  <div class="relative w-full max-w-3xl rounded-xl border border-slate-700 bg-slate-900 shadow-2xl p-6 overflow-hidden">
+    
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div class="flex items-center space-x-3">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 font-semibold text-lg">⚡</span>
+        <div>
+          <h3 class="text-base font-semibold text-white">Оптимизатор сниппета (CTR-Бустер)</h3>
+          <p class="text-xs text-slate-400 truncate max-w-xl" title="{{ url }}">{{ url }}</p>
+        </div>
+      </div>
+      <button type="button" onclick="document.getElementById('seo-optimize-modal').remove()"
+              class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="seo-modal-content" class="mt-4 space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+      
+      <!-- Current Baseline Metrics -->
+      <div class="grid grid-cols-4 gap-2.5 rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs">
+        <div>
+          <div class="text-slate-500 uppercase tracking-wider text-[10px]">Позиция</div>
+          <div class="mt-0.5 text-sm font-semibold text-amber-300">{{ position | round(1) }}</div>
+        </div>
+        <div>
+          <div class="text-slate-500 uppercase tracking-wider text-[10px]">Текущий CTR</div>
+          <div class="mt-0.5 text-sm font-semibold text-rose-300">{{ (ctr * 100) | round(2) }}%</div>
+        </div>
+        <div>
+          <div class="text-slate-500 uppercase tracking-wider text-[10px]">Показы (14 дн.)</div>
+          <div class="mt-0.5 text-sm font-semibold text-slate-300">{{ impressions }}</div>
+        </div>
+        <div>
+          <div class="text-slate-500 uppercase tracking-wider text-[10px]">Клики (14 дн.)</div>
+          <div class="mt-0.5 text-sm font-semibold text-emerald-400">{{ clicks }}</div>
+        </div>
+      </div>
+
+      <!-- Applied Learnings Notice -->
+      {% if learned_patterns_applied %}
+      <div class="rounded-lg border border-indigo-900/50 bg-indigo-950/30 p-3 text-xs">
+        <div class="font-medium text-indigo-300 flex items-center space-x-1.5">
+          <span>🧠 Учтены выученные правила системы самообучения:</span>
+        </div>
+        <ul class="mt-1 space-y-0.5 text-indigo-200/80 list-disc list-inside">
+          {% for g in learned_patterns_applied %}
+            <li>{{ g }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Google SERP Snippet Preview Comparison -->
+      <div class="space-y-3">
+        <div class="text-xs font-medium uppercase tracking-wider text-slate-400">Сравнение сниппета в поиске</div>
+        
+        <!-- BEFORE -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Сейчас в выдаче</div>
+          <div class="text-xs text-slate-400 truncate">{{ url }}</div>
+          <div class="text-sm font-medium text-slate-300 mt-0.5 line-clamp-1">{{ current_title }}</div>
+          <div class="text-xs text-slate-500 mt-0.5 line-clamp-2">{{ current_description or '(мета-описание отсутствует)' }}</div>
+        </div>
+
+        <!-- AFTER (PROPOSED) -->
+        <div class="rounded-lg border border-emerald-900/40 bg-emerald-950/20 p-3">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 mb-1 flex items-center justify-between">
+            <span>Предложение ИИ (Прогноз роста CTR)</span>
+            <span class="text-slate-400 text-[10px]">Модель: {{ model_used }}</span>
+          </div>
+          <div class="text-xs text-emerald-400/80 truncate">{{ url }}</div>
+          <div id="preview-title" class="text-sm font-medium text-emerald-300 mt-0.5 line-clamp-1">{{ generated.seo_title }}</div>
+          <div id="preview-desc" class="text-xs text-slate-300 mt-0.5 line-clamp-2">{{ generated.seo_description }}</div>
+          {% if generated.hypothesis %}
+            <div class="mt-2 text-[11px] text-emerald-200/70 border-t border-emerald-900/40 pt-1.5">
+              💡 <strong>Гипотеза:</strong> {{ generated.hypothesis }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Edit Form for Final Approval -->
+      <form hx-post="/api/ui/seo/candidates/apply-wp"
+            hx-target="#seo-modal-content"
+            hx-swap="innerHTML"
+            class="space-y-3 pt-1">
+        
+        <input type="hidden" name="url" value="{{ url }}">
+        <input type="hidden" name="category" value="{{ category }}">
+        <input type="hidden" name="before_title" value="{{ current_title }}">
+        <input type="hidden" name="before_description" value="{{ current_description }}">
+        <input type="hidden" name="before_position" value="{{ position }}">
+        <input type="hidden" name="before_ctr" value="{{ ctr }}">
+        <input type="hidden" name="before_impressions" value="{{ impressions }}">
+        <input type="hidden" name="before_clicks" value="{{ clicks }}">
+        <input type="hidden" name="model_used" value="{{ model_used }}">
+        <input type="hidden" name="reasoning_hypothesis" value="{{ generated.hypothesis }}">
+
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <label class="font-medium text-slate-300">Новый SEO Title (заголовок сниппета)</label>
+            <span id="title-counter" class="text-slate-500 font-mono text-[11px]">{{ generated.seo_title | length }}/65</span>
+          </div>
+          <input type="text" name="new_title" id="input-title"
+                 value="{{ generated.seo_title }}" required
+                 oninput="document.getElementById('preview-title').innerText = this.value; document.getElementById('title-counter').innerText = this.value.length + '/65';"
+                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium">
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <label class="font-medium text-slate-300">Новый Meta Description (описание)</label>
+            <span id="desc-counter" class="text-slate-500 font-mono text-[11px]">{{ generated.seo_description | length }}/160</span>
+          </div>
+          <textarea name="new_description" id="input-desc" rows="2" required
+                    oninput="document.getElementById('preview-desc').innerText = this.value; document.getElementById('desc-counter').innerText = this.value.length + '/160';"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">{{ generated.seo_description }}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Фокусный поисковый ключевик</label>
+          <input type="text" name="new_focus_keyword" value="{{ generated.focus_keyword }}"
+                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="document.getElementById('seo-optimize-modal').remove()"
+                  class="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+            Отмена
+          </button>
+          <button type="submit"
+                  class="inline-flex items-center space-x-1.5 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-500 transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+            <span>🚀 Применить в WordPress и поставить на трекинг</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,82 @@
+{#
+  Apple macOS HIG: Rubric Classification Partial
+#}
+<div class="flex flex-wrap items-center justify-between gap-2">
+  <div class="flex items-center gap-2">
+    <span class="text-[11px] font-semibold text-mac-secondary">Рубрика:</span>
+    {% if cluster.is_ai_classified %}
+      <span class="mac-pill mac-pill-blue font-semibold">{{ cluster.category_title }}</span>
+    {% else %}
+      <span class="mac-pill mac-pill-neutral font-medium">{{ cluster.category_title }}</span>
+    {% endif %}
+  </div>
+
+  <button hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/classify-category"
+          hx-target="#rubric-classification-block"
+          hx-swap="innerHTML"
+          hx-indicator="#rubric-spinner"
+          class="rounded-lg bg-white border border-black/[0.12] px-2.5 py-1 text-[11px] font-semibold text-mac-ink hover:bg-black/[0.02] shadow-2xs transition-colors flex items-center gap-1">
+    <span>🤖 Определить рубрику ИИ</span>
+  </button>
+</div>
+
+<div id="rubric-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+  <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+  </svg>
+  <span>ИИ анализирует тему и подбирает точную рубрику…</span>
+</div>
+
+{% if cluster.category_justification %}
+  <div class="rounded-lg bg-white border border-black/[0.04] p-2.5 text-mac-ink/90 leading-relaxed text-[11px]">
+    <span class="font-semibold text-mac-ink">Обоснование ИИ: </span>{{ cluster.category_justification }}
+  </div>
+{% endif %}
+
+{# AI Proposal for New Category on the fly #}
+{% if cluster.suggested_rubric %}
+  <div class="rounded-lg border border-amber-300 bg-amber-50/70 p-3 space-y-2.5">
+    <div class="flex items-center gap-1.5 text-amber-900 font-semibold text-[11px]">
+      <span>💡 Предложена новая рубрика:</span>
+      <span class="font-bold">«{{ cluster.suggested_rubric.title }}»</span>
+      <span class="font-mono text-[10px] text-amber-700">({{ cluster.suggested_rubric.slug }})</span>
+    </div>
+    <p class="text-[11px] text-amber-800 leading-snug">
+      {{ cluster.suggested_rubric.description }}
+    </p>
+
+    {% if cluster.suggested_rubric.potential %}
+      <div class="rounded-md bg-amber-100/70 border border-amber-300/80 p-2 text-[11px] text-amber-950 space-y-1">
+        <div class="flex items-center justify-between font-semibold">
+          <span>📊 Потенциал рубрики за {{ cluster.suggested_rubric.potential.lookback_hours | default(120) }} часов:</span>
+          <span class="rounded bg-amber-200/90 px-1.5 py-0.5 text-amber-900 font-bold">
+            ~{{ cluster.suggested_rubric.potential.matching_clusters_count }} сюжетов
+          </span>
+        </div>
+        {% if cluster.suggested_rubric.potential.matching_titles %}
+          <div class="text-[10px] text-amber-800 space-y-0.5 pt-0.5">
+            <span class="font-medium opacity-80">Примеры подходящих сюжетов в очереди:</span>
+            <ul class="list-disc list-inside space-y-0.5">
+              {% for smp in cluster.suggested_rubric.potential.matching_titles %}
+                <li class="truncate">{{ smp }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <form hx-post="/api/ui/lab/cluster/{{ cluster.cluster_id }}/add-category"
+          hx-target="#rubric-classification-block"
+          hx-swap="innerHTML">
+      <input type="hidden" name="slug" value="{{ cluster.suggested_rubric.slug }}">
+      <input type="hidden" name="title" value="{{ cluster.suggested_rubric.title }}">
+      <input type="hidden" name="description" value="{{ cluster.suggested_rubric.description }}">
+      <button type="submit"
+              class="rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+        + Создать рубрику «{{ cluster.suggested_rubric.title }}» в БД и привязать к сюжету
+      </button>
+    </form>
+  </div>
+{% endif %}

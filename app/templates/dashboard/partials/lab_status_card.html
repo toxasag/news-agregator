@@ -1,0 +1,153 @@
+{#
+  Apple macOS HIG Bento Grid: Laboratory System Status & Action Bar
+#}
+<div id="lab-status-card" class="space-y-4">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-base font-semibold text-neutral-900 tracking-tight">Состояние конвейера</h2>
+      <p class="text-xs text-neutral-500">Живые метрики Telegram-источников, очереди сюжетов и публикаций WordPress.</p>
+    </div>
+  </div>
+
+  {# 4 Bento Metric Cards #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    
+    {# 1. Sources #}
+    <div class="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between hover:border-black/[0.12] transition-colors">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-neutral-500">Источники Telegram</span>
+        <span class="mac-pill mac-pill-good text-[10px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          {{ status.active_sources }} активных
+        </span>
+      </div>
+      <div class="my-3">
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-3xl font-semibold tracking-tight text-neutral-900">{{ status.active_sources }}</span>
+          <span class="text-sm font-normal text-neutral-400">/ {{ status.total_sources }} диалогов</span>
+        </div>
+      </div>
+      <div class="text-xs text-neutral-500 flex items-center justify-between border-t border-black/[0.04] pt-2.5">
+        <span>С загрузкой медиа</span>
+        <span class="font-medium text-neutral-700">{{ status.media_sources }}</span>
+      </div>
+    </div>
+
+    {# 2. Queue & Clusters #}
+    <div class="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between hover:border-black/[0.12] transition-colors">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-neutral-500">Очередь постов</span>
+        <span class="mac-pill mac-pill-blue text-[10px]">
+          {{ status.queued_clusters }} сюжетов
+        </span>
+      </div>
+      <div class="my-3">
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-3xl font-semibold tracking-tight text-neutral-900">{{ status.queued_posts }}</span>
+          <span class="text-sm font-normal text-neutral-400">сообщений в базе</span>
+        </div>
+      </div>
+      <div class="text-xs text-neutral-500 flex items-center justify-between border-t border-black/[0.04] pt-2.5">
+        <span>Ожидают написания</span>
+        <span class="font-medium text-neutral-700">{{ status.unwritten_clusters }}</span>
+      </div>
+    </div>
+
+    {# 3. Ingestion Mode #}
+    <div class="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between hover:border-black/[0.12] transition-colors">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-neutral-500">Режим сбора</span>
+        {% if status.is_first_pass %}
+          <span class="mac-pill mac-pill-blue text-[10px]">
+            ⚡ Первый запуск
+          </span>
+        {% else %}
+          <span class="mac-pill mac-pill-neutral text-[10px]">
+            Дельта-сбор
+          </span>
+        {% endif %}
+      </div>
+      <div class="my-3">
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-3xl font-semibold tracking-tight text-neutral-900">{{ status.posts_per_source }}</span>
+          <span class="text-sm font-normal text-neutral-400">постов с канала</span>
+        </div>
+      </div>
+      <div class="text-xs text-neutral-500 flex items-center justify-between border-t border-black/[0.04] pt-2.5">
+        <span>Окно дедупликации</span>
+        <span class="font-medium text-neutral-700">{{ status.dedup_window_hours }} ч</span>
+      </div>
+    </div>
+
+    {# 4. WordPress Publications #}
+    <div class="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between hover:border-black/[0.12] transition-colors">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-neutral-500">Публикации на сайте</span>
+        <span class="mac-pill mac-pill-good text-[10px]">
+          REST API
+        </span>
+      </div>
+      <div class="my-3">
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-3xl font-semibold tracking-tight text-neutral-900">{{ status.wp_archive_total if status.wp_archive_total else status.published_articles }}</span>
+          <span class="text-sm font-normal text-neutral-400">статей на сайте</span>
+        </div>
+      </div>
+      <div class="text-xs text-neutral-500 flex items-center justify-between border-t border-black/[0.04] pt-2.5">
+        <span>Архив для перелинковки</span>
+        <span class="font-medium text-[#0071E3]">{{ status.wp_archive_total if status.wp_archive_total else status.published_articles }} постов</span>
+      </div>
+    </div>
+
+  </div>
+
+  {# Unified Action Bar #}
+  <div class="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <button hx-post="/api/ui/lab/collect-reset"
+              hx-confirm="Сбросить очередь и собрать заново по {{ status.posts_per_source }} постов с каждого из {{ status.active_sources }} активных каналов?"
+              hx-target="#lab-main-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this, #btn-collect-only, #btn-reset-only"
+              hx-indicator="#lab-top-spinner"
+              class="rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white px-4 py-2 text-xs font-semibold shadow-xs flex items-center gap-2 transition-all">
+        <span>⚡ Сбросить очередь и собрать (по {{ status.posts_per_source }})</span>
+      </button>
+
+      <button id="btn-collect-only"
+              hx-post="/api/ui/lab/collect-only"
+              hx-target="#lab-main-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this, #btn-reset-only"
+              hx-indicator="#lab-top-spinner"
+              class="rounded-xl border border-black/[0.12] bg-white hover:bg-neutral-50 text-neutral-800 px-3.5 py-2 text-xs font-medium shadow-2xs transition-all">
+        Собрать без сброса (дельта)
+      </button>
+
+      <button id="btn-reset-only"
+              hx-post="/api/ui/lab/reset"
+              hx-confirm="Очистить очередь постов и кластеров? Статьи останутся нетронутыми."
+              hx-target="#lab-main-container"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this, #btn-collect-only"
+              hx-indicator="#lab-top-spinner"
+              class="rounded-xl border border-red-200 bg-red-50/50 hover:bg-red-50 text-red-600 px-3.5 py-2 text-xs font-medium transition-all">
+        Очистить очередь
+      </button>
+
+      <div id="lab-top-spinner" class="htmx-indicator flex items-center gap-2 text-xs text-neutral-500 pl-2">
+        <svg class="w-4 h-4 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span class="font-medium">Выполняется сбор и дедупликация (до 60 сек)…</span>
+      </div>
+    </div>
+
+    <div class="text-[11px] text-neutral-400">
+      Статус: {{ 'Первый полный сбор' if status.is_first_pass else 'Рабочий конвейер' }}
+    </div>
+  </div>
+
+</div>

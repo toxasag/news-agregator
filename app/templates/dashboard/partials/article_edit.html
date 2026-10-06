@@ -1,0 +1,145 @@
+{#
+  Inline article editor, swapped in by a row's "Править" button.
+
+  Read-only on purpose in this micro-step: it renders the fields an operator needs
+  to inspect a generated article — title, SEO metadata, tags, body — but does not
+  yet POST changes back. A save endpoint has to decide what editing a *published*
+  article means (re-publish to WordPress? re-run distribution? leave the live post
+  alone?), and that belongs with the platform-toggle work rather than being guessed
+  at here. Rendering an input that silently discards edits would be worse than
+  rendering a view.
+#}
+{% if article is none %}
+  <div role="alert"
+       class="rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm
+              text-red-300">
+    Материал {{ article_id }} не найден.
+  </div>
+{% else %}
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="flex items-center justify-between gap-3 border-b border-slate-800
+                   px-4 py-3">
+      <div>
+        <h2 class="text-sm font-medium text-slate-200">
+          Материал <span class="mono text-slate-500">#{{ article.id }}</span>
+        </h2>
+        <p class="mt-0.5 text-xs text-slate-500">
+          Просмотр. Сохранение появится вместе с переключателями платформ.
+        </p>
+      </div>
+      <button
+        onclick="document.getElementById('article-editor').innerHTML = ''"
+        class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300
+               hover:border-slate-500 hover:text-white">
+        Закрыть
+      </button>
+    </header>
+
+    <div class="space-y-4 p-4">
+      <div>
+        <label class="block text-xs text-slate-400">Заголовок</label>
+        <input type="text" value="{{ article.title }}" readonly
+               class="mt-1 w-full rounded-md border border-slate-800 bg-slate-950 px-3
+                      py-2 text-sm text-slate-200">
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="block text-xs text-slate-400">SEO-заголовок</label>
+          <input type="text" value="{{ article.seo_title or '' }}" readonly
+                 class="mt-1 w-full rounded-md border border-slate-800 bg-slate-950
+                        px-3 py-2 text-sm text-slate-200">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400">Рубрика</label>
+          <input type="text" value="{{ article.category }}" readonly
+                 class="mt-1 w-full rounded-md border border-slate-800 bg-slate-950
+                        px-3 py-2 text-sm text-slate-200 mono">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400">Meta description</label>
+        <textarea rows="2" readonly
+                  class="mt-1 w-full rounded-md border border-slate-800 bg-slate-950
+                         px-3 py-2 text-sm text-slate-200">{{ article.seo_description or '' }}</textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400">Ключевые фразы</label>
+        <div class="mt-1 flex flex-wrap gap-1.5">
+          {% for keyword in article.seo_keywords or [] %}
+            <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+              {{ keyword }}
+            </span>
+          {% else %}
+            <span class="text-xs text-slate-600">нет</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400">
+          HTML материала
+          <span class="text-slate-600">({{ (article.content_html or '') | length }} символов)</span>
+        </label>
+        {#
+          Rendered as escaped *source*, never as live markup: this is model output
+          that quoted scraped pages, and injecting it into the dashboard would make
+          the admin panel the one place where that HTML executes.
+        #}
+        <textarea rows="12" readonly
+                  class="mt-1 w-full rounded-md border border-slate-800 bg-slate-950
+                         px-3 py-2 text-xs text-slate-300 mono">{{ article.content_html or '' }}</textarea>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-3 text-xs">
+        <div class="rounded border border-slate-800 px-3 py-2">
+          <div class="text-slate-500">WordPress</div>
+          <div class="mono text-slate-300">
+            {{ article.wp_post_id or '—' }}
+          </div>
+        </div>
+        <div class="rounded border border-slate-800 px-3 py-2">
+          <div class="text-slate-500">Обложка</div>
+          <div class="mono text-slate-300">{{ article.wp_image_id or '—' }}</div>
+        </div>
+        <div class="rounded border border-slate-800 px-3 py-2">
+          <div class="text-slate-500">Попыток</div>
+          <div class="mono text-slate-300">{{ article.retry_count }}</div>
+        </div>
+      </div>
+
+      {% if article.platform_statuses %}
+        <div>
+          <label class="block text-xs text-slate-400">Публикации по платформам</label>
+          <div class="mt-1 grid gap-2 sm:grid-cols-2">
+            {% for code, entry in article.platform_statuses.items() %}
+              <div class="rounded border border-slate-800 px-3 py-2 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="mono text-slate-300">{{ code }}</span>
+                  <span class="mono
+                    {% if entry.get('status') == 'published' %}text-emerald-300
+                    {% elif entry.get('status') == 'failed' %}text-red-300
+                    {% else %}text-slate-500{% endif %}">
+                    {{ entry.get('status', '—') }}
+                  </span>
+                </div>
+                {% if entry.get('error') %}
+                  <div class="mt-1 text-red-400">{{ entry.get('error') }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if article.error_message %}
+        <div class="rounded border border-amber-900/60 bg-amber-950/30 px-3 py-2
+                    text-xs text-amber-300">
+          {{ article.error_message }}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}

@@ -1,0 +1,129 @@
+{#
+  Apple macOS HIG: Publication Result (WordPress & Dzen Card Replacement)
+#}
+{% if is_dzen %}
+  {# Dzen Card Content #}
+  <div class="space-y-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5 font-semibold text-xs text-mac-ink">
+        <span>📱 Яндекс Дзен Студия</span>
+      </div>
+      {% if ok %}
+        <span class="mac-pill mac-pill-good text-[10px] font-semibold">✓ В Дзене{% if post_id %} #{{ post_id }}{% endif %}</span>
+      {% else %}
+        <span class="mac-pill mac-pill-warn text-[10px]">Ошибка отправки</span>
+      {% endif %}
+    </div>
+
+    {% if ok %}
+      <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5">
+        <div class="font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+          <span>{{ message or "Статья успешно отправлена в Яндекс Дзен!" }}</span>
+        </div>
+        {% if post_url %}
+          <div class="pt-0.5">
+            <a href="{{ post_url }}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-1 text-orange-600 font-semibold hover:underline">
+              <span>Открыть в Дзен Студии ↗</span>
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+        <div class="font-semibold text-rose-900">Ошибка отправки в Дзен:</div>
+        <p class="text-[11px] font-mono text-rose-700 leading-snug">{{ message }}</p>
+      </div>
+    {% endif %}
+
+    {% if warnings %}
+      <div class="text-[10.5px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+        Предупреждения: {{ warnings | join(', ') }}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="pt-2 border-t border-black/[0.04] flex items-center justify-between gap-2">
+    <div id="step-dzen-spinner" class="htmx-indicator text-[11px] text-mac-secondary flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5 animate-spin text-orange-600" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      <span>Отправляем в Дзен…</span>
+    </div>
+
+    {% if cluster_id %}
+      <button hx-post="/api/ui/lab/cluster/{{ cluster_id }}/publish-dzen"
+              hx-target="#step-publish-dzen-container"
+              hx-swap="innerHTML"
+              hx-indicator="#step-dzen-spinner"
+              class="rounded-xl bg-orange-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-orange-700 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto">
+        <span>🔄 Отправить повторно</span>
+      </button>
+    {% endif %}
+  </div>
+
+{% else %}
+  {# WordPress Card Content #}
+  <div class="space-y-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5 font-semibold text-xs text-mac-ink">
+        <span>🌐 Сайт издания (WordPress)</span>
+      </div>
+      {% if ok %}
+        <span class="mac-pill mac-pill-good text-[10px] font-semibold">✓ Опубликовано{% if post_id %} #{{ post_id }}{% endif %}</span>
+      {% else %}
+        <span class="mac-pill mac-pill-warn text-[10px]">Ошибка публикации</span>
+      {% endif %}
+    </div>
+
+    {% if ok %}
+      <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1.5">
+        <div class="font-medium flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+          <span>{{ message or "Успешно опубликовано на сайт издания!" }}</span>
+        </div>
+        {% if post_url %}
+          <div class="pt-0.5">
+            <a href="{{ post_url }}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-1 text-[#0071E3] font-semibold hover:underline">
+              <span>Открыть публикацию на сайте ↗</span>
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+        <div class="font-semibold text-rose-900">Ошибка публикации на сайт:</div>
+        <p class="text-[11px] font-mono text-rose-700 leading-snug">{{ message }}</p>
+      </div>
+    {% endif %}
+
+    {% if warnings %}
+      <div class="text-[10.5px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+        Предупреждения: {{ warnings | join(', ') }}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="pt-2 border-t border-black/[0.04] flex items-center justify-between gap-2">
+    <div id="step-wp-spinner" class="htmx-indicator text-[11px] text-mac-secondary flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      <span>Публикуем на сайт…</span>
+    </div>
+
+    {% if cluster_id %}
+      <button hx-post="/api/ui/lab/cluster/{{ cluster_id }}/publish"
+              hx-target="#step-publish-wp-container"
+              hx-swap="innerHTML"
+              hx-indicator="#step-wp-spinner"
+              class="rounded-xl bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-emerald-700 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto">
+        <span>🔄 Обновить на сайте</span>
+      </button>
+    {% endif %}
+  </div>
+{% endif %}

@@ -1,0 +1,201 @@
+{#
+  Apple macOS HIG Drawer Card: Telegram Channel Publishing Bot Configuration.
+#}
+<div id="tg-conn-container" data-service-pane="telegram" class="service-drawer-pane rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-4 mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-[#229ED9]/10 text-[#229ED9] flex items-center justify-center font-bold text-base">
+        <svg class="w-5 h-5 text-[#229ED9]" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h3 class="text-[15px] font-semibold text-mac-ink">Telegram Канал (@svodka_press)</h3>
+          {% if telegram_conn.channel_title %}
+            <span class="text-xs font-medium text-[#229ED9] bg-sky-50 px-2 py-0.5 rounded-md">
+              {{ telegram_conn.channel_title }}
+            </span>
+          {% endif %}
+        </div>
+        <p class="text-xs text-mac-secondary">
+          Мгновенная автономная публикация новостей с обложками, форматированием и кнопками в Telegram-канал.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button"
+              onclick="const el = document.getElementById('tg-guide-box'); el.classList.toggle('hidden');"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/70 hover:bg-sky-100/70 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors shadow-2xs cursor-pointer">
+        <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>📖 Как настроить бота</span>
+      </button>
+
+      {% if telegram_conn.is_ready and telegram_conn.status == 'active' %}
+        <span class="mac-pill mac-pill-good">Бот активен ✅</span>
+      {% elif telegram_conn.has_token and telegram_conn.status == 'error' %}
+        <span class="mac-pill mac-pill-error">Ошибка публикации ⚠️</span>
+      {% elif telegram_conn.has_token %}
+        <span class="mac-pill mac-pill-warn">Требует проверки</span>
+      {% else %}
+        <span class="mac-pill mac-pill-neutral">Не настроен</span>
+      {% endif %}
+
+      <span class="mac-pill mac-pill-good">Канал: {{ telegram_conn.channel_id or '@svodka_press' }}</span>
+    </div>
+  </div>
+
+  {# TG Setup Guide (Collapsible Bento Grid, hidden by default) #}
+  <div id="tg-guide-box" class="hidden mb-5 rounded-2xl border border-sky-100 bg-[#F8FAFC] p-4 text-xs text-mac-ink shadow-2xs space-y-4">
+    <div class="flex items-center justify-between border-b border-sky-200/60 pb-2.5">
+      <div class="flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#229ED9] text-white font-bold text-[11px]">i</span>
+        <h4 class="font-semibold text-[13px] text-mac-ink">Настройка Telegram-бота для публикации (1 минута)</h4>
+      </div>
+      <button type="button"
+              onclick="document.getElementById('tg-guide-box').classList.add('hidden')"
+              class="text-xs text-sky-600 hover:text-sky-800 font-medium cursor-pointer">
+        Свернуть ✕
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div class="rounded-xl border border-sky-200/80 bg-white p-3.5 space-y-2.5 shadow-2xs">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+          <span class="font-semibold text-xs text-mac-ink">Создайте бота у @BotFather</span>
+        </div>
+        <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-mac-secondary leading-relaxed">
+          <li>Откройте <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="text-sky-600 underline font-semibold">@BotFather</a> в Telegram.</li>
+          <li>Отправьте команду <code class="font-mono bg-sky-50 px-1 py-0.5 rounded text-sky-800">/newbot</code>, задайте имя и username.</li>
+          <li>Скопируйте полученный <strong>HTTP API Token</strong> (<code class="font-mono text-[10px]">7123456789:AA...</code>).</li>
+        </ol>
+      </div>
+
+      <div class="rounded-xl border border-sky-200/80 bg-white p-3.5 space-y-2.5 shadow-2xs">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-[10px] font-bold">2</span>
+          <span class="font-semibold text-xs text-mac-ink">Добавьте бота в канал</span>
+        </div>
+        <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-mac-secondary leading-relaxed">
+          <li>Зайдите в управление каналом <strong>@svodka_press</strong> → Администраторы → <strong>Добавить администратора</strong>.</li>
+          <li>Найдите созданного бота по его юзернейму и подтвердите добавление.</li>
+          <li>Убедитесь, что включено разрешение <strong>«Публикация сообщений»</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="rounded-xl border border-sky-200/80 bg-white p-3.5 space-y-2.5 shadow-2xs">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-[10px] font-bold">3</span>
+          <span class="font-semibold text-xs text-mac-ink">Вставьте токен и сохраните</span>
+        </div>
+        <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-mac-secondary leading-relaxed">
+          <li>Вставьте токен в поле <strong>«Telegram Bot Token»</strong> ниже.</li>
+          <li>Укажите юзернейм канала (<code class="font-mono font-semibold">@svodka_press</code>).</li>
+          <li>Нажмите <strong>«Проверить связь»</strong>, а затем <strong>«Сохранить настройки»</strong>.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  {# Form #}
+  <form hx-post="/api/ui/settings/telegram/save"
+        hx-target="#tg-feedback"
+        hx-swap="innerHTML"
+        hx-indicator="#tg-action-spinner"
+        class="space-y-4">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold text-mac-ink mb-1.5">
+          Telegram Bot Token (из @BotFather)
+        </label>
+        <div class="relative">
+          <input type="password"
+                 id="tg_bot_token"
+                 name="bot_token"
+                 value="{{ telegram_conn.masked_token() if telegram_conn.has_token else '' }}"
+                 placeholder="7123456789:AAF..."
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FBFBFD] px-3.5 py-2 text-xs text-mac-ink font-mono focus:border-[#229ED9] focus:bg-white focus:outline-none transition-colors pr-10" />
+          <button type="button"
+                  onclick="const input = document.getElementById('tg_bot_token'); input.type = input.type === 'password' ? 'text' : 'password';"
+                  class="absolute right-3 top-2.5 text-mac-secondary hover:text-mac-ink text-xs cursor-pointer">
+            👁️
+          </button>
+        </div>
+        <p class="mt-1 text-[11px] text-mac-secondary">
+          Токен шифруется ключом Fernet перед сохранением в PostgreSQL.
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-mac-ink mb-1.5">
+          Канал Telegram (ID или Username)
+        </label>
+        <input type="text"
+               id="tg_channel_id"
+               name="channel_id"
+               value="{{ telegram_conn.channel_id or '@svodka_press' }}"
+               placeholder="@svodka_press или -100..."
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FBFBFD] px-3.5 py-2 text-xs text-mac-ink font-mono focus:border-[#229ED9] focus:bg-white focus:outline-none transition-colors" />
+        <p class="mt-1 text-[11px] text-mac-secondary">
+          Публичный юзернейм с собачкой (например, <code class="font-mono">@svodka_press</code>) или числовой ID канала.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between pt-3 border-t border-black/[0.06] flex-wrap gap-3">
+      <label class="inline-flex items-center gap-2 cursor-pointer">
+        <input type="checkbox"
+               name="is_active"
+               value="true"
+               {% if telegram_conn.is_active %}checked{% endif %}
+               class="h-4 w-4 rounded border-black/20 text-[#229ED9] focus:ring-[#229ED9]">
+        <span class="text-xs font-medium text-mac-ink">Автоматическая публикация включена</span>
+      </label>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="tg-action-spinner" class="htmx-indicator flex items-center gap-1.5 text-[#229ED9] text-xs font-medium mr-2">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Проверяю Telegram...
+        </span>
+
+        <button type="button"
+                hx-post="/api/ui/settings/telegram/test"
+                hx-include="#tg_bot_token, #tg_channel_id"
+                hx-target="#tg-feedback"
+                hx-swap="innerHTML"
+                hx-indicator="#tg-action-spinner"
+                hx-disabled-elt="this"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-3.5 py-2 text-xs font-semibold text-mac-ink transition-colors shadow-2xs cursor-pointer disabled:opacity-50">
+          <svg class="w-3.5 h-3.5 text-[#229ED9]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>⚡ Проверить связь</span>
+        </button>
+
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-[#229ED9] hover:bg-[#1E88C7] px-4 py-2 text-xs font-semibold text-white transition-colors shadow-2xs cursor-pointer">
+          <span>Сохранить настройки Telegram</span>
+        </button>
+      </div>
+    </div>
+
+    {# Inline Feedback Area — Directly under buttons! #}
+    <div id="tg-feedback" class="pt-2">
+      {% if telegram_conn.error_message %}
+        <div class="mac-pill mac-pill-error text-xs">{{ telegram_conn.error_message }}</div>
+      {% elif telegram_conn.bot_username %}
+        <div class="mac-pill mac-pill-good text-xs">
+          ✅ Бот @{{ telegram_conn.bot_username }} готов к публикации в {{ telegram_conn.channel_title or telegram_conn.channel_id }}
+        </div>
+      {% endif %}
+    </div>
+  </form>
+</div>

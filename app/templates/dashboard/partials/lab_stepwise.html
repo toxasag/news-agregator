@@ -1,0 +1,110 @@
+{#
+  Stepwise lab run UI: sequential cluster processing with parallel option.
+
+  Shows the current step, progress, and per-cluster status. Each step can be
+  re-run individually, and clusters can be processed in parallel on demand.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-medium text-slate-200">
+          Пошаговый прогон
+          <span class="text-slate-500">({{ run.run_id }})</span>
+        </h2>
+        <span class="rounded px-2 py-0.5 text-xs
+          {% if run.status == 'completed' %}bg-emerald-950/60 text-emerald-300
+          {% elif run.status == 'failed' %}bg-rose-950/60 text-rose-300
+          {% elif run.status == 'running' %}bg-sky-950/60 text-sky-300
+          {% else %}bg-slate-800 text-slate-400{% endif %}">
+          {{ run.status }}
+        </span>
+      </div>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Шаг {{ run.current_step }}/4 · Обработано кластеров: {{ run.processed_clusters }}/{{ run.total_clusters }}
+      </p>
+    </header>
+
+    <div class="p-4">
+      {% if run.status == 'running' %}
+        {# Step controls #}
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          {% if run.current_step < 4 %}
+            <form hx-post="/api/ui/lab/step/next"
+                  hx-target="#lab-stepwise-result"
+                  hx-swap="innerHTML"
+                  hx-indicator="#step-spinner">
+              <input type="hidden" name="run_id" value="{{ run.run_id }}">
+              <button type="submit"
+                      class="btn btn-primary text-sm">
+                Следующая новость
+              </button>
+              <label class="ml-2 text-xs text-slate-600">
+                <input type="checkbox" name="parallel" value="1" class="mr-1">
+                Параллельно выбранные
+              </label>
+            </form>
+          {% endif %}
+          <span id="step-spinner" class="htmx-indicator text-xs text-slate-600">
+            выполняется…
+          </span>
+        </div>
+
+        {# Cluster list #}
+        <div class="space-y-2">
+          {% for cluster_id, state in run.cluster_states.items() %}
+            <div class="rounded-md border border-slate-700 bg-slate-800/50 px-3 py-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="mono text-xs text-slate-300">{{ cluster_id[:12] }}…</div>
+                <div class="flex gap-1">
+                  {% for step_num in range(4) %}
+                    {% set step_name = ['collect', 'research', 'media_check', 'generate'][step_num] %}
+                    {% set step_status = state.get(step_name, 'pending') %}
+                    <span class="rounded px-1.5 py-0.5 text-[10px]
+                      {% if step_status == 'completed' %}bg-emerald-950/60 text-emerald-300
+                      {% elif step_status == 'failed' %}bg-rose-950/60 text-rose-300
+                      {% elif step_status == 'processing' %}bg-sky-950/60 text-sky-300
+                      {% else %}bg-slate-700 text-slate-500{% endif %}">
+                      {{ ['Сбор', 'Ресерч', 'Медиа', 'Текст'][step_num] }}: {{ step_status }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% if state.get('research_result') %}
+                <div class="mt-1 text-xs text-slate-400">
+                  Ресерч: {{ state.research_result | length }} факт(ов)
+                </div>
+              {% endif %}
+              {% if state.get('draft') %}
+                <div class="mt-1 text-xs text-slate-400">
+                  Статья: {{ state.draft.get('title', 'без заголовка') }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% elif run.status == 'completed' %}
+        <div class="rounded-md border border-emerald-900/60 bg-emerald-950/30 px-4 py-3 text-sm
+                    text-emerald-200">
+          Прогон завершён. Обработано кластеров: {{ run.processed_clusters }}/{{ run.total_clusters }}
+        </div>
+      {% elif run.status == 'failed' %}
+        <div class="rounded-md border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+                    text-rose-200">
+          Прогон завершился с ошибкой: {{ run.error_message or 'неизвестная ошибка' }}
+        </div>
+      {% else %}
+        <div class="rounded-md border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm
+                    text-slate-400">
+          Прогон ожидает запуска.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

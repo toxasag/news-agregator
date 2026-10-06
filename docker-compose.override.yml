@@ -1,0 +1,38 @@
+# =============================================================================
+# Local development overrides — auto-merged by `docker compose up`.
+# Enables hot reload and exposes services on the LOOPBACK interface only:
+# publishing to 0.0.0.0 would bypass host firewall rules and expose the
+# datastores to the network.
+# =============================================================================
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+
+  app:
+    build:
+      target: runtime
+    environment:
+      APP_ENV: development
+      DEBUG: "true"
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-8000}:8000"
+    volumes:
+      - ./:/app
+      - app_logs:/app/logs
+      - media_storage:/app/storage/media
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app/app

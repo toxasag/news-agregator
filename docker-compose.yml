@@ -1,0 +1,117 @@
+# =============================================================================
+# SvodkaPress NextGen — base composition (shared by dev and prod)
+#   dev  : docker compose up            (docker-compose.override.yml auto-merges)
+#   prod : docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+name: svodkapress
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: svodkapress_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-svodkapress}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: ${TIMEZONE:-Europe/Moscow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-svodkapress}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - svodkapress_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: svodkapress_redis
+    restart: unless-stopped
+    # `noeviction` is deliberate: this Redis is the ARQ broker and the MinHash
+    # LSH dedup index, not a cache. Under an LRU policy it would silently drop
+    # queued jobs and LSH buckets, causing lost publications and duplicates.
+    # Cache-like data must carry an explicit TTL instead.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks:
+      - svodkapress_net
+
+  app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: runtime
+    image: svodkapress/app:latest
+    container_name: svodkapress_app
+    restart: unless-stopped
+    # Only `env_file` is used for app settings: values repeated under
+    # `environment` would take precedence and silently ignore edits to `.env`.
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_logs:/app/logs
+      - ./secrets:/app/secrets:ro
+      - media_storage:/app/storage/media
+      - fastembed_cache:/app/storage/fastembed
+      - browser_profiles:/app/storage/browser_profiles
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    networks:
+      - svodkapress_net
+
+volumes:
+  postgres_data:
+    name: svodkapress_postgres_data
+  redis_data:
+    name: svodkapress_redis_data
+  app_logs:
+    name: svodkapress_app_logs
+  media_storage:
+    name: svodkapress_media_storage
+  # Holds the downloaded ONNX embedding model (220 MB). Persisted so a
+  # rebuild does not re-download it, and shared by every worker.
+  fastembed_cache:
+    name: svodkapress_fastembed_cache
+  # Holds persistent Chromium profiles (user-data-dir) for YouTube, TenChat, Setka
+  browser_profiles:
+    name: svodkapress_browser_profiles
+
+networks:
+  svodkapress_net:
+    name: svodkapress_net
+    driver: bridge

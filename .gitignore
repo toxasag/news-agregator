@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+
+# Runtime artifacts
+logs/
+storage/
+*.log
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+.kilo/
+.playwright-mcp/
+tmp_sync/
+scratch/

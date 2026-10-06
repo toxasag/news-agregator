@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Обзор конвейера и аналитика{% endblock %}
+{% block heading %}Обзор конвейера и аналитика{% endblock %}
+{% block subheading %}
+  Суточный пульс сбора и публикаций, распределение по соцсетям, инспектор сбоев и финансовый радар ИИ.
+{% endblock %}
+
+{% block content %}
+  {#
+    The full dashboard overview lives in a partial and polls periodically.
+    HTMX replaces only this container, maintaining scroll position and fast response.
+  #}
+  <div id="stats"
+       hx-get="/api/ui/stats?days={{ days_filter | default(7) }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+       hx-trigger="every 45s"
+       hx-swap="innerHTML">
+    {% include "partials/stats.html" %}
+  </div>
+{% endblock %}

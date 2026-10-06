@@ -1,0 +1,689 @@
+{#
+  Base dashboard layout — light, shadcn-style application shell.
+
+  Tailwind comes from the CDN and HTMX from unpkg: the stack constraint in
+  AGENTS.md forbids a node_modules build step. Both are pinned to a major
+  version — an unpinned CDN tag is a third party's ability to change the
+  dashboard without warning.
+
+  The component CSS below is deliberately loaded *before* Tailwind. Utility
+  classes and these component classes have the same specificity, so source order
+  decides: loading Tailwind last keeps a utility on a `.btn` working instead of
+  silently losing to the component rule.
+
+  The palette is achromatic by design: canvas #f5f5f5, white cards, one ink
+  for text, hairline borders. Red (#e7000b) is reserved exclusively for
+  destructive actions — never for decoration or status.
+
+  `hx-headers` is not used for CSRF because the session cookie is SameSite=Lax,
+  which is what makes a cross-site POST impossible; adding a token would be
+  ceremony without a threat model behind it.
+#}
+<!DOCTYPE html>
+<html lang="ru" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# The dashboard is an internal tool: keep it out of every index. #}
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}СводкаПресс{% endblock %} — панель управления</title>
+
+  <style>
+    :root {
+      /* Apple Light macOS HIG Design Tokens */
+      --canvas: #f5f5f7;
+      --paper: #ffffff;
+      --sidebar: #fafafa;
+      --frosted: rgba(255, 255, 255, 0.78);
+      --ink: #1d1d1f;
+      --ink-soft: #2c2c2e;
+      --ink-secondary: #6e6e73;
+      --ink-muted: #86868b;
+      --mid: #6e6e73;
+      --hairline: rgba(0, 0, 0, 0.08);
+      --hairline-subtle: rgba(0, 0, 0, 0.04);
+      --ember: #ff3b30;
+      --good: #34c759;
+      --warn: #ff9500;
+      --apple-blue: #0071e3;
+      --apple-blue-hover: #0077ed;
+      --apple-graphite: #1d1d1f;
+      --apple-graphite-hover: #2c2c2e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+                   ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+      font-size: 13.5px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background: var(--canvas);
+      color: var(--ink);
+    }
+
+    .mono {
+      font-family: "SF Mono", Monaco, Menlo, Consolas, ui-monospace, monospace;
+      font-size: 0.9em;
+      letter-spacing: -0.01em;
+    }
+
+    /* The sidebar sits one tonal step above the canvas: a layer, not a bar. */
+    .rail {
+      background: var(--sidebar);
+      border-right: 1px solid var(--hairline);
+    }
+
+    .toolbar {
+      background: rgba(245, 245, 247, 0.82);
+      backdrop-filter: saturate(180%) blur(16px);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .lights { display: flex; gap: 6px; align-items: center; }
+    .lights i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+
+    /* Bento Cards (Apple HIG Spec) */
+    .card, .mac-card {
+      background: var(--paper);
+      border: 1px solid var(--hairline);
+      border-radius: 20px;
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.02);
+      transition: box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms ease;
+    }
+    .card-interactive:hover {
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.04);
+      transform: translateY(-1px);
+    }
+    .card-frosted, .mac-frosted {
+      background: var(--frosted);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid var(--hairline);
+      border-radius: 20px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    .card-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--hairline);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .card-body { padding: 20px; }
+
+    /* Inset grouped list. */
+    .rows > * + * { border-top: 1px solid var(--hairline); }
+    .row { padding: 11px 16px; display: flex; align-items: center; gap: 12px; }
+    .row-hover:hover { background: rgba(0, 0, 0, 0.025); }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: 10px;
+      color: var(--mid); transition: background 120ms ease, color 120ms ease;
+      font-weight: 450;
+    }
+    .nav-item:hover { background: rgba(0, 0, 0, 0.04); color: var(--ink); }
+    .nav-item[aria-current="page"] { background: var(--ink); color: #ffffff; font-weight: 500; }
+    .nav-item svg { width: 16px; height: 16px; flex: none; opacity: 0.9; }
+
+    /* macOS Action Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 6px 14px; border-radius: 12px;
+      border: 1px solid transparent;
+      background: rgba(0, 0, 0, 0.05); color: var(--ink);
+      font-weight: 500; font-size: 13px;
+      transition: all 120ms ease;
+    }
+    .btn:hover { background: rgba(0, 0, 0, 0.08); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    
+    .btn-primary, .mac-btn-primary {
+      background: var(--ink); color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    }
+    .btn-primary:hover, .mac-btn-primary:hover {
+      background: var(--ink-soft);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+    }
+
+    .btn-accent, .mac-btn-accent {
+      background: var(--apple-blue); color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0, 113, 227, 0.25);
+    }
+    .btn-accent:hover, .mac-btn-accent:hover {
+      background: var(--apple-blue-hover);
+    }
+
+    .btn-outline {
+      background: transparent; border: 1px solid var(--hairline); color: var(--ink);
+    }
+    .btn-outline:hover { background: rgba(0, 0, 0, 0.03); }
+
+    .btn-danger {
+      background: rgba(255, 59, 48, 0.08); border: 1px solid rgba(255, 59, 48, 0.2); color: var(--ember);
+    }
+    .btn-danger:hover { background: rgba(255, 59, 48, 0.14); }
+
+    .field, .mac-input {
+      width: 100%; padding: 8px 12px; border-radius: 12px;
+      background: var(--paper);
+      border: 1px solid var(--hairline);
+      color: var(--ink);
+      font-size: 13px;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+    .field::placeholder, .mac-input::placeholder { color: var(--ink-muted); }
+    .field:focus, .mac-input:focus {
+      outline: none;
+      border-color: var(--apple-blue);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+      background: var(--paper);
+    }
+
+    /* macOS Status Pills */
+    .chip, .mac-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 9999px; white-space: nowrap;
+      font-size: 11.5px; font-weight: 500;
+      background: rgba(0, 0, 0, 0.05); color: var(--ink-secondary);
+      border: 1px solid transparent;
+    }
+    .chip-solid { background: var(--ink); color: #ffffff; }
+    .chip-outline { background: transparent; border: 1px solid var(--hairline); color: var(--ink); }
+    .chip-good, .mac-pill-good {
+      background: rgba(52, 199, 89, 0.12); color: #168038; border-color: rgba(52, 199, 89, 0.22);
+    }
+    .chip-warn, .mac-pill-warn {
+      background: rgba(255, 149, 0, 0.12); color: #b45309; border-color: rgba(255, 149, 0, 0.22);
+    }
+    .chip-bad, .mac-pill-bad, .mac-pill-danger {
+      background: rgba(255, 59, 48, 0.1); color: #c5221f; border-color: rgba(255, 59, 48, 0.2);
+    }
+    .chip-info, .mac-pill-info, .mac-pill-blue {
+      background: rgba(0, 113, 227, 0.1); color: #0062cc; border-color: rgba(0, 113, 227, 0.2);
+    }
+    .mac-pill-neutral {
+      background: rgba(0, 0, 0, 0.05); color: #6e6e73; border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    /* Focus styling */
+    a:focus-visible, button:focus-visible, input:focus-visible,
+    select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--apple-blue);
+      outline-offset: 2px;
+      border-radius: 8px;
+    }
+
+    .terminal { scrollbar-width: thin; }
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16); border-radius: 6px;
+      border: 2px solid transparent; background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.28); background-clip: content-box; }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    .htmx-indicator { display: none; }
+    .htmx-request.htmx-indicator,
+    .htmx-request .htmx-indicator { display: flex !important; }
+    @keyframes progress-indeterminate {
+      0% { margin-left: 0%; width: 25%; }
+      50% { margin-left: 35%; width: 65%; }
+      100% { margin-left: 100%; width: 15%; }
+    }
+    .animate-progress-indeterminate {
+      animation: progress-indeterminate 1.4s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Article Typography — High-readability Editorial Standard */
+    .article-typography {
+      color: #1d1d1f;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .article-typography h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #111827;
+      margin-top: 1.4rem;
+      margin-bottom: 0.6rem;
+      padding-left: 0.75rem;
+      border-left: 3.5px solid #0071E3;
+      letter-spacing: -0.01em;
+    }
+    .article-typography p {
+      margin-bottom: 0.85rem;
+      color: #27272a;
+    }
+    .article-typography p:first-of-type {
+      font-size: 15px;
+      line-height: 1.6;
+      font-weight: 450;
+      color: #18181b;
+    }
+    .article-typography ul {
+      list-style-type: disc !important;
+      padding-left: 1.4rem !important;
+      margin-top: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+    .article-typography ol {
+      list-style-type: decimal !important;
+      padding-left: 1.4rem !important;
+      margin-top: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+    .article-typography li {
+      margin-bottom: 0.4rem;
+      padding-left: 0.2rem;
+    }
+    .article-typography strong {
+      font-weight: 650;
+      color: #09090b;
+    }
+    .article-typography blockquote {
+      margin: 1rem 0;
+      padding: 0.75rem 1rem 0.75rem 1.1rem;
+      border-left: 3.5px solid #0071E3;
+      background: rgba(0, 113, 227, 0.04);
+      border-radius: 0 10px 10px 0;
+      font-style: italic;
+      color: #1e3a8a;
+    }
+    .article-typography a {
+      color: #0071E3;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font-weight: 500;
+    }
+    .article-typography a:hover {
+      color: #0077ED;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    /*
+      The palette is remapped rather than rewritten across every template.
+
+      The partials were written against Tailwind's dark slate scale plus
+      sky/emerald/rose accents. Hand-editing a thousand class occurrences would
+      risk breaking working HTMX targets for a purely visual change, so the
+      scale itself is redefined here: `bg-slate-100` now paints the light
+      canvas, `text-slate-200` becomes primary ink, and the status colours stay
+      where they are semantically. Every screen adopts the new look at once.
+    */
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            mac: {
+              canvas: '#f5f5f7',
+              paper: '#ffffff',
+              sidebar: '#fafafa',
+              ink: '#1d1d1f',
+              secondary: '#6e6e73',
+              muted: '#86868b',
+              hairline: 'rgba(0, 0, 0, 0.08)',
+              subtle: 'rgba(0, 0, 0, 0.04)',
+              blue: '#0071e3',
+              'blue-hover': '#0077ed',
+              graphite: '#1d1d1f',
+              'graphite-hover': '#2c2c2e',
+              emerald: '#34c759',
+              amber: '#ff9500',
+              rose: '#ff3b30',
+            },
+            slate: {
+              50: '#09090b', 100: '#0f172a', 200: '#111827',
+              300: '#1e293b', 400: '#334155', 500: '#475569',
+              600: '#64748b', 700: '#cbd5e1', 800: '#e2e8f0',
+              900: '#f8fafc', 950: '#ffffff',
+            },
+            emerald: {
+              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#047857',
+              400: '#059669', 500: '#10b981', 600: '#059669', 700: '#047857',
+              800: '#065f46', 900: '#064e3b', 950: '#ecfdf5',
+            },
+            amber: {
+              50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#92400e',
+              400: '#b45309', 500: '#d97706', 600: '#d97706', 700: '#b45309',
+              800: '#92400e', 900: '#78350f', 950: '#fffbeb',
+            },
+            rose: {
+              50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#be123c',
+              400: '#e11d48', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c',
+              800: '#9f1239', 900: '#881337', 950: '#fff1f2',
+            },
+            red: {
+              50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#b91c1c',
+              400: '#dc2626', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c',
+              800: '#991b1b', 900: '#7f1d1d', 950: '#fef2f2',
+            },
+            sky: {
+              50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#0369a1',
+              400: '#0284c7', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+              800: '#075985', 900: '#0c4a6e', 950: '#f0f9ff',
+            },
+            indigo: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#3730a3',
+              400: '#4338ca', 500: '#4f46e5', 600: '#4f46e5', 700: '#3730a3',
+              800: '#312e81', 900: '#1e1b4b', 950: '#eef2ff',
+            },
+          },
+          borderRadius: { md: '10px', lg: '18px', xl: '24px' },
+          fontFamily: {
+            sans: ['"Geist"', '"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /*
+      High-Contrast Light Mode Harmonization Layer v2 (WCAG AAA across all admin pages)
+      Covers all dark-mode Tailwind classes that render white-on-white after the
+      inverted Tailwind palette and light-mode migration.
+    */
+    .text-slate-50, .text-slate-100, .text-slate-200,
+    .text-neutral-900, .text-gray-900, .text-zinc-900 {
+      color: #0f172a !important;
+    }
+    .text-slate-300, .text-neutral-700, .text-gray-700 {
+      color: #1e293b !important;
+    }
+    .text-slate-400, .text-neutral-500, .text-neutral-600,
+    .text-gray-500, .text-gray-600, .text-zinc-500 {
+      color: #334155 !important;
+    }
+    .text-slate-500, .text-slate-600, .text-neutral-400,
+    .text-gray-400, .text-zinc-400 {
+      color: #475569 !important;
+    }
+
+    /* High-contrast accent text on light cards and badges */
+    [class*="text-indigo-100"], [class*="text-indigo-200"],
+    [class*="text-indigo-300"], [class*="text-indigo-400"] { color: #312e81 !important; }
+    [class*="text-emerald-100"], [class*="text-emerald-200"],
+    [class*="text-emerald-300"], [class*="text-emerald-400"] { color: #065f46 !important; }
+    [class*="text-amber-100"], [class*="text-amber-200"],
+    [class*="text-amber-300"], [class*="text-amber-400"] { color: #92400e !important; }
+    [class*="text-rose-100"], [class*="text-rose-200"],
+    [class*="text-rose-300"], [class*="text-rose-400"],
+    [class*="text-red-200"], [class*="text-red-300"], [class*="text-red-400"] { color: #be123c !important; }
+    [class*="text-sky-100"], [class*="text-sky-200"],
+    [class*="text-sky-300"], [class*="text-sky-400"] { color: #075985 !important; }
+    [class*="text-blue-100"], [class*="text-blue-200"],
+    [class*="text-blue-300"], [class*="text-blue-400"] { color: #1e40af !important; }
+    [class*="text-purple-100"], [class*="text-purple-200"],
+    [class*="text-purple-300"], [class*="text-purple-400"],
+    [class*="text-violet-200"], [class*="text-violet-300"], [class*="text-violet-400"] { color: #5b21b6 !important; }
+    [class*="text-pink-300"], [class*="text-pink-400"] { color: #9d174d !important; }
+
+    /* Clean light surfaces for callout boxes that used dark-mode *-950 / *-900 tints */
+    [class*="bg-indigo-950"], [class*="bg-indigo-900"] { background-color: #eef2ff !important; border-color: #c7d2fe !important; }
+    [class*="bg-emerald-950"], [class*="bg-emerald-900"] { background-color: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+    [class*="bg-amber-950"], [class*="bg-amber-900"] { background-color: #fffbeb !important; border-color: #fde68a !important; }
+    [class*="bg-rose-950"], [class*="bg-rose-900"],
+    [class*="bg-red-950"], [class*="bg-red-900"] { background-color: #fff1f2 !important; border-color: #fecdd3 !important; }
+    [class*="bg-sky-950"], [class*="bg-sky-900"] { background-color: #f0f9ff !important; border-color: #bae6fd !important; }
+
+    /*
+      Apple Light HIG Typography & Button Colors (Zero-Glitch Contrast)
+      Ensures all action buttons, pills and accent controls ALWAYS have crisp white
+      text (#ffffff), while stats, titles and labels on light cards render with dark ink.
+    */
+
+    /* 1. Dark ink on light cards for stats, headings, labels (EXCLUDING buttons, links, and all their descendants) */
+    div.text-white:not([class*="bg-"]):not(button):not(a):not(button *):not(a *),
+    span.text-white:not([class*="bg-"]):not(button):not(a):not(button *):not(a *),
+    h1.text-white:not(button *):not(a *), h2.text-white:not(button *):not(a *),
+    h3.text-white:not(button *):not(a *), h4.text-white:not(button *):not(a *),
+    h5.text-white:not(button *):not(a *), p.text-white:not(button *):not(a *),
+    [class*="bg-slate-9"] div.text-white:not([class*="bg-"]):not(button *):not(a *),
+    [class*="bg-slate-9"] span.text-white:not([class*="bg-"]):not(button *):not(a *) {
+      color: #0f172a !important;
+    }
+
+    /* 2. Form inputs: dark ink on white background */
+    input.text-white, textarea.text-white, select.text-white,
+    input[class*="bg-slate-"], textarea[class*="bg-slate-"], select[class*="bg-slate-"] {
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+    }
+
+    /* 3. Action Buttons & Controls: ALWAYS crisp white text on dark/colored buttons & ALL their children */
+    button[class*="bg-[#0071E3]"], button[class*="bg-[#0071e3]"],
+    button[class*="bg-[#0077ED]"], button[class*="bg-[#0077ed]"],
+    button[class*="bg-[#1d1d1f]"], button[class*="bg-[#2c2c2e]"],
+    button[class*="bg-blue-6"], button[class*="bg-blue-7"],
+    button[class*="bg-indigo-6"], button[class*="bg-indigo-7"],
+    button[class*="bg-emerald-6"], button[class*="bg-emerald-7"],
+    button[class*="bg-red-6"], button[class*="bg-rose-6"],
+    button[class*="bg-slate-8"], button[class*="bg-slate-9"],
+    a[class*="bg-[#0071E3]"], a[class*="bg-[#0071e3]"],
+    a[class*="bg-[#0077ED]"], a[class*="bg-[#0077ed]"],
+    a[class*="bg-[#1d1d1f]"], a[class*="bg-[#2c2c2e]"],
+    a[class*="bg-blue-6"], a[class*="bg-blue-7"],
+    a[class*="bg-indigo-6"], a[class*="bg-indigo-7"],
+    a[class*="bg-emerald-6"], a[class*="bg-emerald-7"],
+    a[class*="bg-red-6"], a[class*="bg-rose-6"],
+    a[class*="bg-slate-8"], a[class*="bg-slate-9"],
+    .btn-primary, .btn-accent, .mac-btn-primary, .mac-btn-accent,
+    .chip-solid, .nav-item[aria-current="page"] {
+      color: #ffffff !important;
+    }
+
+    /* Target all descendants inside dark/colored buttons to guarantee crisp white text on spans, icons & labels */
+    button[class*="bg-[#0071E3]"] *, button[class*="bg-[#0071e3]"] *,
+    button[class*="bg-[#0077ED]"] *, button[class*="bg-[#0077ed]"] *,
+    button[class*="bg-[#1d1d1f]"] *, button[class*="bg-[#2c2c2e]"] *,
+    button[class*="bg-blue-6"] *, button[class*="bg-blue-7"] *,
+    button[class*="bg-indigo-6"] *, button[class*="bg-indigo-7"] *,
+    button[class*="bg-emerald-6"] *, button[class*="bg-emerald-7"] *,
+    button[class*="bg-red-6"] *, button[class*="bg-rose-6"] *,
+    button[class*="bg-slate-8"] *, button[class*="bg-slate-9"] *,
+    a[class*="bg-[#0071E3]"] *, a[class*="bg-[#0071e3]"] *,
+    a[class*="bg-[#0077ED]"] *, a[class*="bg-[#0077ed]"] *,
+    a[class*="bg-[#1d1d1f]"] *, a[class*="bg-[#2c2c2e]"] *,
+    a[class*="bg-blue-6"] *, a[class*="bg-blue-7"] *,
+    a[class*="bg-indigo-6"] *, a[class*="bg-indigo-7"] *,
+    a[class*="bg-emerald-6"] *, a[class*="bg-emerald-7"] *,
+    a[class*="bg-red-6"] *, a[class*="bg-rose-6"] *,
+    a[class*="bg-slate-8"] *, a[class*="bg-slate-9"] *,
+    .btn-primary *, .btn-accent *, .mac-btn-primary *, .mac-btn-accent *,
+    .chip-solid *, .nav-item[aria-current="page"] * {
+      color: #ffffff !important;
+    }
+
+    /* Light buttons (neutral/tinted) always maintain legible dark/accent ink */
+    button[class*="bg-black/"], button[class*="bg-slate-1"], button[class*="bg-slate-5"],
+    button[class*="bg-blue-50"], button[class*="bg-emerald-50"], button[class*="bg-white"],
+    a[class*="bg-black/"], a[class*="bg-slate-1"], a[class*="bg-slate-5"],
+    a[class*="bg-blue-50"], a[class*="bg-emerald-50"], a[class*="bg-white"] {
+      /* inherit designed ink color, never force white */
+    }
+
+    /*
+      Terminal (logs page) — the only intentionally dark surface in the dashboard.
+      Keeps the GitHub Dark color palette for log levels.
+    */
+    .terminal {
+      background-color: #0d1117 !important;
+      border-color: #30363d !important;
+      color: #c9d1d9 !important;
+    }
+    .terminal .text-white         { color: #c9d1d9 !important; }
+    .terminal .text-slate-600     { color: #6e7681 !important; }
+    .terminal .text-slate-300,
+    .terminal .text-slate-500     { color: #c9d1d9 !important; }
+    .terminal .text-amber-300     { color: #d29922 !important; }
+    .terminal .text-red-400       { color: #f85149 !important; }
+    .terminal .text-red-300       { color: #ff7b72 !important; }
+    .terminal .text-sky-400       { color: #58a6ff !important; }
+    /* Traceback lines */
+    .terminal [class*="text-red-500"] { color: rgba(248, 81, 73, 0.85) !important; }
+
+    /* SSE state badge colours (inside terminal header) */
+    [class*="bg-emerald-950"] { background-color: rgba(6, 78, 59, 0.5) !important; }
+    [class*="bg-red-950"]     { background-color: rgba(67, 20, 7, 0.5) !important; }
+
+    /* Logs page action buttons: readable on light toolbar */
+    #sse-clear, #sse-pause {
+      border-color: #94a3b8 !important;
+      color: #334155 !important;
+      background: transparent;
+    }
+    #sse-clear:hover, #sse-pause:hover {
+      border-color: #475569 !important;
+      color: #0f172a !important;
+    }
+  </style>
+  <link rel="preconnect" href="https://rsms.me/">
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+
+<body class="h-full" style="background: var(--canvas); color: var(--ink);">
+{% set tabs = [
+  ('index', '/', 'Обзор'),
+  ('articles', '/articles', 'Материалы'),
+  ('lab', '/lab', 'Лаборатория'),
+  ('sources', '/sources', 'Источники'),
+  ('seo', '/seo', 'SEO'),
+  ('ads', '/ads', 'Реклама'),
+  ('settings', '/settings', 'Настройки'),
+  ('ai_settings', '/settings/ai', 'Настройки ИИ'),
+  ('logs', '/logs', 'Логи')
+] %}
+{% set icons = {
+  'index':       'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5',
+  'articles':    'M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5',
+  'lab':         'M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3',
+  'sources':     'M4 6h16M4 12h16M4 18h10',
+  'seo':         'M4 19V9m5 10V5m5 14v-7m5 7V8',
+  'ads':         'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
+  'settings':    'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM4 12h2m12 0h2M12 4v2m0 12v2',
+  'ai_settings': 'M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6l2.1-2.1',
+  'logs':        'M4 5h16v14H4zM7 9h6M7 12h10M7 15h8'
+} %}
+
+<div class="flex min-h-full">
+
+  {# ---------------------------------------------------------------- sidebar #}
+  <aside class="rail hidden md:flex w-[228px] shrink-0 flex-col fixed inset-y-0 left-0 z-20">
+    <div class="flex h-[52px] items-center gap-3 px-4">
+      {# Window chrome, purely decorative: the one platform cue, now light. #}
+      <span class="lights" aria-hidden="true">
+        <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+      </span>
+      <span class="text-[13px] font-semibold" style="color: var(--ink);">СводкаПресс</span>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-2.5 pb-3" aria-label="Разделы панели">
+      <div class="px-2.5 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-wider"
+           style="color: var(--mid);">Конвейер</div>
+      {% for key, href, label in tabs %}
+        <a href="{{ href }}" class="nav-item text-[13px]"
+           {% if active == key %}aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="{{ icons[key] }}"></path>
+          </svg>
+          {{ label }}
+        </a>
+      {% endfor %}
+    </nav>
+
+    <div class="border-t px-2.5 py-2.5" style="border-color: var(--hairline);">
+      {% if admin %}
+        <a href="/profile" class="nav-item text-[13px]"
+           {% if active == 'profile' %}aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20c1.6-3.2 4-4.8 7-4.8s5.4 1.6 7 4.8"></path>
+          </svg>
+          <span class="truncate">{{ admin.username }}</span>
+        </a>
+      {% endif %}
+      <div class="mt-2 flex items-center justify-between gap-2 px-1">
+        <span class="chip chip-outline mono text-[11px]">{{ env }}</span>
+        <form method="post" action="/auth/logout">
+          <button type="submit" class="btn btn-outline text-[12px]">Выйти</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  {# ------------------------------------------------------------ main column #}
+  <div class="flex min-w-0 flex-1 flex-col md:pl-[228px]">
+
+    <header class="toolbar sticky top-0 z-10">
+      <div class="flex min-h-[52px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+        <div class="min-w-0 flex-1">
+          <h1 class="text-[16px] font-semibold tracking-tight" style="color: var(--ink);">
+            {% block heading %}{% endblock %}
+          </h1>
+          <p class="mt-0.5 text-[12px] leading-snug text-neutral-500 line-clamp-1">
+            {% block subheading %}{% endblock %}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">{% block actions %}{% endblock %}</div>
+      </div>
+
+      {# The same destinations, as a scrolling strip, for narrow screens. #}
+      <nav class="md:hidden flex gap-1 overflow-x-auto px-3 pb-2.5" aria-label="Разделы панели">
+        {% for key, href, label in tabs %}
+          <a href="{{ href }}" class="nav-item shrink-0 text-[12.5px]"
+             {% if active == key %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </header>
+
+    <main class="flex-1 px-4 py-5 sm:px-6">
+      <div class="mx-auto {% block container_class %}max-w-[1280px]{% endblock %}">
+        {# Global incident watchdog alert banner #}
+        <div id="global-incidents-bar"
+             hx-get="/api/ui/incidents"
+             hx-trigger="load, every 30s"
+             hx-swap="outerHTML">
+        </div>
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    <footer class="px-4 py-4 sm:px-6">
+      <div class="mx-auto max-w-[1280px] text-[11.5px]" style="color: var(--mid);">
+        Автономный новостной конвейер. Панель не индексируется и требует входа.
+      </div>
+    </footer>
+  </div>
+</div>
+<script>
+  document.body.addEventListener('htmx:responseError', function(evt) {
+    var xhr = evt.detail.xhr;
+    if (xhr && xhr.status === 401) {
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+    } else if (xhr) {
+      console.warn('HTMX server error:', xhr.status, xhr.responseText);
+    }
+  });
+  document.body.addEventListener('htmx:sendError', function(evt) {
+    console.warn('HTMX network error:', evt.detail);
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

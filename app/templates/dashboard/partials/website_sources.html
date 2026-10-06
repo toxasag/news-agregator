@@ -1,0 +1,56 @@
+{# Website sources list. Re-rendered after add / deactivate. #}
+<div class="divide-y divide-slate-800">
+  {% for source in website_sources %}
+    <div class="px-4 py-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="truncate text-sm text-slate-200">{{ source.name }}</div>
+          <div class="mono text-xs text-slate-500">{{ source.identifier }}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="rounded px-2 py-0.5 text-xs
+            {% if source.is_active %}bg-emerald-950/60 text-emerald-300
+            {% else %}bg-slate-800 text-slate-500{% endif %}">
+            {{ 'активен' if source.is_active else 'выключен' }}
+          </span>
+          {% if source.is_active %}
+            <form hx-post="/api/ui/sources/website/{{ source.id }}/deactivate"
+                  hx-confirm="Выключить «{{ source.name }}»? История постов сохранится."
+                  hx-target="#website-sources-panel"
+                  hx-swap="innerHTML">
+              <button type="submit"
+                      class="rounded-md border border-rose-900/60 px-2 py-1 text-xs
+                             text-rose-200 hover:border-rose-700">
+                Удалить
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+      {% if source.crawl_rules %}
+        <dl class="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+          {% for key, value in source.crawl_rules.items() %}
+            <div class="flex gap-2">
+              <dt class="mono text-slate-500">{{ key }}</dt>
+              <dd class="mono truncate text-slate-400">{{ value }}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="px-4 py-6 text-center text-sm text-slate-500">
+      Сайты не добавлены.
+    </p>
+  {% endfor %}
+</div>
+{% if website_message %}
+  <p class="border-t border-slate-800 px-4 py-2 text-xs text-emerald-300">
+    {{ website_message }}
+  </p>
+{% endif %}
+{% if website_error %}
+  <p class="border-t border-slate-800 px-4 py-2 text-xs text-rose-300">
+    {{ website_error }}
+  </p>
+{% endif %}

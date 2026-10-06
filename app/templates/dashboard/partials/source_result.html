@@ -1,0 +1,26 @@
+{#
+  Result of the skip_media toggle.
+
+  Confirms the value the server actually stored rather than the one the checkbox
+  shows, so a rejected or failed write cannot leave the operator believing a
+  setting changed when it did not.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-2 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-2
+              text-sm text-emerald-200">
+    <span class="truncate">{{ source_name }}</span>:
+    <span class="mono">skip_media = {{ 'true' if skip_media else 'false' }}</span>
+    {% if skip_media %}
+      <span class="text-emerald-300/80">— обложка будет генерироваться заново.</span>
+    {% else %}
+      <span class="text-emerald-300/80">— медиа источника переиспользуется.</span>
+    {% endif %}
+  </div>
+{% endif %}

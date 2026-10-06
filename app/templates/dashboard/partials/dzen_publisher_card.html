@@ -1,0 +1,276 @@
+{#
+  Apple macOS HIG Drawer Card: Dzen Browser Session & Isolated Ads Publishing.
+#}
+<div id="dzen-publisher-container" data-service-pane="dzen" class="service-drawer-pane rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-4 mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold text-base">
+        Д
+      </div>
+      <div>
+        <h3 class="text-[15px] font-semibold text-mac-ink">Яндекс Дзен: Браузерная публикация и раздельная реклама</h3>
+        <p class="text-xs text-mac-secondary">
+          Публикация через Playwright Stealth в Студию Дзена с сохранением сессии и изолированными рекламными врезками.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" 
+              onclick="const el = document.getElementById('dzen-guide-box'); el.classList.toggle('hidden');"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50/70 hover:bg-orange-100/70 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors shadow-2xs cursor-pointer">
+        <svg class="w-3.5 h-3.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>📖 Справка: как настроить</span>
+      </button>
+
+      {% if dzen_config.is_active and dzen_config.status == 'valid' %}
+        <span class="mac-pill mac-pill-good">🟢 Сессия активна (Студия Дзена)</span>
+      {% elif dzen_config.status == 'expired' %}
+        <span class="mac-pill mac-pill-warn">🔴 Сессия истекла</span>
+      {% elif dzen_config.status == 'captcha' %}
+        <span class="mac-pill mac-pill-warn">🟡 Требуется SmartCaptcha</span>
+      {% elif dzen_config.has_session %}
+        <span class="mac-pill mac-pill-neutral">🟡 Сессия загружена (не проверена)</span>
+      {% else %}
+        <span class="mac-pill mac-pill-neutral">⚪ Сессия не настроена</span>
+      {% endif %}
+
+      {% if dzen_config.promo_mode != 'none' %}
+        <span class="mac-pill mac-pill-good">Реклама Дзена: {{ dzen_config.promo_mode }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Guide Drawer (Hidden by default) #}
+  <div id="dzen-guide-box" class="mb-5 rounded-2xl border border-orange-100 bg-[#FFFBF7] p-4 text-xs text-mac-ink shadow-2xs space-y-3 hidden">
+    <div class="flex items-center justify-between border-b border-orange-200/60 pb-2">
+      <div class="flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white font-bold text-[11px]">i</span>
+        <h4 class="font-semibold text-[13px] text-mac-ink">Как экспортировать сессию Дзена (storage_state.json)</h4>
+      </div>
+      <button type="button" 
+              onclick="document.getElementById('dzen-guide-box').classList.add('hidden')"
+              class="text-xs text-orange-600 hover:text-orange-800 font-medium cursor-pointer">
+        Свернуть ✕
+      </button>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11.5px] text-mac-secondary leading-relaxed">
+      <div class="rounded-xl border border-orange-100 bg-white p-3 space-y-1">
+        <strong class="text-mac-ink block">1. Войдите в Студию Дзена</strong>
+        Откройте браузер, авторизуйтесь под своим Яндекс ID и перейдите в <a href="https://dzen.ru/studio" target="_blank" rel="noopener noreferrer" class="text-orange-600 underline">dzen.ru/studio</a>.
+      </div>
+      <div class="rounded-xl border border-orange-100 bg-white p-3 space-y-1">
+        <strong class="text-mac-ink block">2. Скопируйте куки (Cookie-Editor)</strong>
+        В расширении <em>Cookie-Editor</em> нажмите <strong>Export → Export as JSON</strong>. <em>Важно:</em> экспорт должен содержать авторизационные куки Яндекса (включая <code class="bg-black/[0.04] px-1 rounded">Session_id</code>).
+      </div>
+      <div class="rounded-xl border border-orange-100 bg-white p-3 space-y-1">
+        <strong class="text-mac-ink block">3. Вставьте, сохраните и протестируйте</strong>
+        Вставьте полученный JSON ниже и нажмите «Сохранить». Затем нажмите «🔍 Проверить статус» или «📝 Создать тестовый черновик» для подтверждения публикации.
+      </div>
+    </div>
+  </div>
+
+  <form hx-post="/api/ui/settings/dzen"
+        hx-target="#dzen-publisher-container"
+        hx-swap="outerHTML"
+        hx-indicator="#dzen-action-spinner"
+        class="space-y-5">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {# Channel URL #}
+      <div>
+        <label for="dzen_channel_url" class="block text-xs font-semibold text-mac-ink mb-1">
+          Ссылка на канал в Дзене
+        </label>
+        <input type="url" id="dzen_channel_url" name="channel_url"
+               value="{{ dzen_config.channel_url }}"
+               placeholder="https://dzen.ru/svodkapress"
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3.5 py-2 text-xs text-mac-ink focus:border-orange-500 focus:bg-white focus:outline-none transition-colors">
+      </div>
+
+      {# Channel Name #}
+      <div>
+        <label for="dzen_channel_name" class="block text-xs font-semibold text-mac-ink mb-1">
+          Название канала (для отображения)
+        </label>
+        <input type="text" id="dzen_channel_name" name="channel_name"
+               value="{{ dzen_config.channel_name }}"
+               placeholder="Сводка Пресс"
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3.5 py-2 text-xs text-mac-ink focus:border-orange-500 focus:bg-white focus:outline-none transition-colors">
+      </div>
+    </div>
+
+    {# Publication Mode and Status Toggles #}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-3.5 rounded-xl bg-[#F8FAFC] border border-black/[0.05]">
+      <div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="is_active" value="true"
+                 {% if dzen_config.is_active %}checked{% endif %}
+                 class="h-4 w-4 rounded border-black/20 text-orange-500 focus:ring-orange-500">
+          <span class="text-xs font-semibold text-mac-ink">Включить публикацию в Яндекс Дзен</span>
+        </label>
+        <p class="text-[11px] text-mac-secondary mt-1 ml-6">
+          При включении воркер будет автоматически распространять статьи в ваш канал Дзена.
+        </p>
+      </div>
+
+      <div>
+        <label for="dzen_publication_mode" class="block text-xs font-semibold text-mac-ink mb-1">
+          Режим создания статьи
+        </label>
+        <select id="dzen_publication_mode" name="publication_mode"
+                class="w-full rounded-xl border border-black/[0.12] bg-white px-3 py-1.5 text-xs text-mac-ink focus:border-orange-500 focus:outline-none">
+          <option value="publish" {% if dzen_config.publication_mode == 'publish' %}selected{% endif %}>
+            🚀 Сразу публиковать в ленту Дзена
+          </option>
+          <option value="draft" {% if dzen_config.publication_mode == 'draft' %}selected{% endif %}>
+            📝 Сохранять как черновик в Студии (для ручной проверки)
+          </option>
+        </select>
+      </div>
+    </div>
+
+    {# Session Storage State JSON #}
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <label for="dzen_storage_state" class="block text-xs font-semibold text-mac-ink">
+          Файл сессии (storage_state.json или Cookies JSON)
+        </label>
+        {% if dzen_config.has_session %}
+          <span class="text-[11px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+            🔒 Сессия сохранена в БД (шифрование Fernet)
+          </span>
+        {% else %}
+          <span class="text-[11px] text-mac-secondary">
+            Требуется однократная вставка кук для входа без логина и пароля
+          </span>
+        {% endif %}
+      </div>
+      <textarea id="dzen_storage_state" name="storage_state_json" rows="3"
+                placeholder='{"cookies": [{"name": "Session_id", "value": "..."}, {"name": "sessionid2", "value": "..."}], "origins": []}'
+                class="w-full font-mono text-[11px] rounded-xl border border-black/[0.12] bg-[#FAFAFA] p-3 text-mac-ink focus:border-orange-500 focus:bg-white focus:outline-none transition-colors"></textarea>
+      <p class="text-[11px] text-mac-secondary mt-1">
+        Оставьте пустым, чтобы не перезаписывать уже сохраненную сессию. Для обновления вставьте новый JSON.
+      </p>
+    </div>
+
+    {# Isolated Ads / Promo Section #}
+    <div class="border-t border-black/[0.06] pt-4 space-y-3">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold text-xs">📢</span>
+        <div>
+          <h4 class="text-xs font-semibold text-mac-ink">Раздельная реклама и промо-врезки для Дзена</h4>
+          <p class="text-[11px] text-mac-secondary">
+            Контент из этого блока встраивается <strong>только в статьи Дзена</strong> (сайт svodka.press остается со своей рекламой).
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label for="dzen_promo_mode" class="block text-xs font-semibold text-mac-ink mb-1">
+            Формат рекламы
+          </label>
+          <select id="dzen_promo_mode" name="promo_mode"
+                  class="w-full rounded-xl border border-black/[0.12] bg-white px-3 py-2 text-xs text-mac-ink focus:border-orange-500 focus:outline-none">
+            <option value="none" {% if dzen_config.promo_mode == 'none' %}selected{% endif %}>Без рекламы</option>
+            <option value="native_banner" {% if dzen_config.promo_mode == 'native_banner' %}selected{% endif %}>
+              🔶 Нативный баннер (Партнерский материал)
+            </option>
+            <option value="promo_box" {% if dzen_config.promo_mode == 'promo_box' %}selected{% endif %}>
+              🔹 Редакционная врезка (Callout Box)
+            </option>
+            <option value="custom_html" {% if dzen_config.promo_mode == 'custom_html' %}selected{% endif %}>
+              ⚙️ Произвольный HTML-код
+            </option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="dzen_promo_snippet" class="block text-xs font-semibold text-mac-ink mb-1">
+            Текст промо-врезки или баннера
+          </label>
+          <textarea id="dzen_promo_snippet" name="promo_snippet" rows="2"
+                    placeholder="Например: Читайте главные новости на сайте или в телеграм канале"
+                    class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] p-2.5 text-xs text-mac-ink focus:border-orange-500 focus:bg-white focus:outline-none transition-colors">{{ dzen_config.promo_snippet }}</textarea>
+          <p class="mt-1 text-[11px] text-mac-secondary">
+            💡 Слова «сайте» и «телеграм канале» автоматически становятся кликабельными ссылками на сайт <code class="text-orange-600">https://svodka.press/</code> и Telegram-канал <code class="text-orange-600">https://t.me/svodka_press</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {# Action Buttons #}
+    <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-black/[0.06]">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="submit"
+                class="inline-flex items-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 text-xs font-semibold shadow-2xs transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Сохранить настройки Дзена</span>
+        </button>
+
+        <button type="button"
+                hx-post="/api/ui/settings/dzen/probe"
+                hx-target="#dzen-publisher-container"
+                hx-swap="outerHTML"
+                hx-indicator="#dzen-action-spinner"
+                hx-disabled-elt="this"
+                class="inline-flex items-center gap-2 rounded-xl border border-black/[0.12] bg-[#FAFAFA] hover:bg-[#F2F2F2] text-mac-ink px-4 py-2 text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50">
+          <svg class="w-3.5 h-3.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>🔍 Проверить статус сессии</span>
+        </button>
+
+        <button type="button"
+                hx-post="/api/ui/settings/dzen/test-publish"
+                hx-target="#dzen-publisher-container"
+                hx-swap="outerHTML"
+                hx-indicator="#dzen-action-spinner"
+                hx-disabled-elt="this"
+                hx-confirm="Создать тестовый черновик статьи в Студии Дзена?"
+                class="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-800 px-4 py-2 text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50">
+          <svg class="w-3.5 h-3.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span>📝 Создать тестовый черновик</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span id="dzen-action-spinner" class="htmx-indicator flex items-center gap-1.5 text-orange-600 text-xs font-medium">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Выполняю запрос к Студии Дзена...
+        </span>
+        {% if dzen_config.last_checked_at %}
+          <span class="text-[11px] text-mac-secondary">
+            Проверка: {{ dzen_config.last_checked_at }}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  {# Inline Feedback Area — Directly under buttons! #}
+  {% if dzen_feedback %}
+    <div class="mt-3 rounded-xl p-3.5 text-xs {% if dzen_feedback.is_valid or dzen_feedback.status == 'saved' %}bg-emerald-50 text-emerald-900 border border-emerald-200{% else %}bg-amber-50 text-amber-900 border border-amber-200{% endif %} flex items-start justify-between gap-3">
+      <div class="space-y-0.5">
+        <div class="font-semibold">
+          {% if dzen_feedback.is_valid or dzen_feedback.status == 'saved' %}✅{% else %}⚠️{% endif %}
+          Яндекс Дзен: {{ dzen_feedback.message }}
+        </div>
+        {% if dzen_feedback.timestamp %}
+          <div class="text-[10.5px] opacity-75 font-mono">Время проверки: {{ dzen_feedback.timestamp }}</div>
+        {% endif %}
+      </div>
+      <button type="button" onclick="this.parentElement.remove()" class="text-xs opacity-70 hover:opacity-100 cursor-pointer">✕</button>
+    </div>
+  {% endif %}
+</div>

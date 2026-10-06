@@ -1,0 +1,24 @@
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-3">
+    <div class="text-sm font-medium text-emerald-200">Цепочки сохранены</div>
+    <dl class="mt-2 grid gap-1 text-xs text-emerald-100/90">
+      {% for row in chains %}
+        <div class="flex flex-wrap gap-2">
+          <dt class="text-emerald-300/80">{{ row.label }}</dt>
+          <dd class="mono">{{ row.models | join(' → ') or '—' }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+    <p class="mt-2 text-xs text-emerald-300/70">
+      При ошибке модель уходит в кулдаун на 60 секунд, и запрос сразу повторяется
+      к следующей в цепочке.
+    </p>
+  </div>
+{% endif %}

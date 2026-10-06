@@ -1,0 +1,28 @@
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-3
+              text-sm text-emerald-200">
+    Найдено диалогов: {{ discovered }}. Новых добавлено: {{ created }},
+    обновлено существующих: {{ updated }}{% if merged %}, объединено дублей:
+    {{ merged }}{% endif %}{% if described %}, дополнено вне списка диалогов:
+    {{ described }}{% endif %}. Импорт не включает сбор — отметьте нужные строки
+    чекбоксом.
+  </div>
+
+  {#
+    The table is refreshed in the same response, out of band: without it the
+    operator reads "3 added" while the rows below still show the previous list
+    and has to reload the page to see them.
+  #}
+  {% if rows is defined %}
+    <div id="channels-table-body-wrap" hx-swap-oob="innerHTML">
+      {% include "partials/sources_table.html" %}
+    </div>
+  {% endif %}
+{% endif %}

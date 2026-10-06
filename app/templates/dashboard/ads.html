@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+{% block title %}Реклама и интеграции{% endblock %}
+{% block heading %}Реклама и коммерческие интеграции{% endblock %}
+{% block subheading %}
+  Управление рекламодателями, нативными врезками в статьи, UTM-разметкой и сквозным учётом конверсий в Яндекс Метрике.
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  {# 1. Top Metrics Bar #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">Кампании в ротации</div>
+      <div class="text-2xl font-bold text-mac-ink font-mono">{{ active_projects_count }} / {{ projects | length }}</div>
+      <div class="text-[11px] text-emerald-600 font-medium">● Активные рекламодатели</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">Целевые визиты (UTM)</div>
+      <div class="text-2xl font-bold text-[#0071E3] font-mono">{{ (adv_report or {}).get('total_target_visits', 0) }}</div>
+      <div class="text-[11px] text-mac-secondary">С наших площадок за 28д</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">Достижения целей</div>
+      <div class="text-2xl font-bold text-emerald-600 font-mono">{{ (adv_report or {}).get('total_goal_conversions', 0) }}</div>
+      <div class="text-[11px] text-mac-secondary">Целевые конверсии Метрики</div>
+    </div>
+
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">Closed-Loop с /seo</div>
+      <div class="text-2xl font-bold text-mac-ink font-mono">UTM + Цели</div>
+      <div class="text-[11px] text-emerald-600 font-medium">
+        <a href="/seo" class="hover:underline">Сквозное обучение /seo →</a>
+      </div>
+    </div>
+  </div>
+
+  {# 2. Header Action Bar #}
+  <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-black/[0.08] shadow-2xs">
+    <div>
+      <h2 class="text-sm font-bold text-mac-ink">Каталог рекламодателей и спецпроектов</h2>
+      <p class="text-xs text-mac-secondary">У каждого рекламодателя есть кнопка <strong>«📊 Метрика и цели»</strong> для подключения счётчика, загрузки целей и обучения <a href="/seo" class="text-[#0071E3] underline">/seo</a>.</p>
+    </div>
+
+    <button type="button"
+            onclick="openNewAdvertiserModal()"
+            class="rounded-xl bg-[#0071E3] text-white px-4 py-2 text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer">
+      <span class="text-sm font-bold">+</span>
+      <span>Добавить рекламодателя</span>
+    </button>
+  </div>
+
+  {# 3. Dynamic Projects Grid (HTMX target) #}
+  {% include "partials/ads_projects_list.html" %}
+
+  {# 4. In-Article Ad Inset Demonstration Card #}
+  <div class="rounded-2xl border border-black/[0.08] bg-white p-6 shadow-2xs space-y-4">
+    <div class="flex items-center justify-between border-b border-black/[0.06] pb-3">
+      <div class="space-y-0.5">
+        <h3 class="text-sm font-bold text-mac-ink">Анатомия рекламных врезок в статьях (svodka.press)</h3>
+        <p class="text-xs text-mac-secondary">
+          Каждая статья на сайте получает 2 автоматических рекламных блока РСЯ и 1 органическую нативную врезку рекламодателя.
+        </p>
+      </div>
+      <span class="mac-pill mac-pill-info text-[10px]">Редакционный стандарт</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {# Sample 1: RSYA Banner Mockup #}
+      <div class="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4 space-y-2">
+        <div class="flex items-center justify-between text-xs font-semibold text-amber-900">
+          <span>📢 Блок РСЯ (Рекламная Сеть Яндекса)</span>
+          <span class="mac-pill mac-pill-warn text-[9px]">Автоматический код</span>
+        </div>
+        <div class="rounded-lg bg-white border border-amber-200 p-4 text-center space-y-1 shadow-2xs">
+          <div class="text-xs font-bold text-neutral-800">Яндекс Директ / РСЯ</div>
+          <div class="text-[11px] text-neutral-500">Баннер Top Billboard (728×90 / 300×250). Настраивается в коде шаблона WordPress.</div>
+        </div>
+      </div>
+
+      {# Sample 2: Native Advertorial Inset #}
+      <div class="rounded-xl border border-blue-200 bg-blue-50/30 p-4 space-y-2">
+        <div class="flex items-center justify-between text-xs font-semibold text-blue-900">
+          <span>🎯 Нативная интеграция рекламодателя</span>
+          <span class="mac-pill mac-pill-good text-[9px]">Brand Safe</span>
+        </div>
+        <div id="sample-inset-container" class="rounded-xl bg-white border border-blue-100 p-4 space-y-2 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-[#0071E3] flex items-center gap-1">
+              <span>✦</span> <span id="sample-brand-name">Пример интеграции</span>
+            </span>
+            <span class="text-[9px] text-neutral-400 font-mono">svodka.press/partner</span>
+          </div>
+          <p id="sample-usp-text" class="text-xs font-medium text-mac-ink leading-relaxed">
+            Уникальное торговое предложение рекламодателя органично встраивается в смысловой контекст новости.
+          </p>
+          <div class="pt-1">
+            <a id="sample-cta-btn" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0071E3] text-white text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs">
+              <span id="sample-cta-label">Попробовать бесплатно →</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# 5. Audience Demographic & Crypta Targeting Guidance #}
+  <div class="rounded-2xl border border-black/[0.08] bg-white p-6 shadow-2xs space-y-4">
+    <div class="flex items-center justify-between border-b border-black/[0.06] pb-3">
+      <div class="space-y-0.5">
+        <h3 class="text-sm font-bold text-mac-ink">Портрет читательской аудитории (Яндекс Метрика + Крипта)</h3>
+        <p class="text-xs text-mac-secondary">
+          Фактические демографические и поведенческие данные для таргетинга коммерческих кампаний.
+        </p>
+      </div>
+      <a href="/seo" class="text-xs font-semibold text-[#0071E3] hover:underline">Открыть аналитику /seo →</a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+      <div class="rounded-xl bg-[#FAFAFA] border border-black/[0.04] p-3.5 space-y-2">
+        <div class="text-[10.5px] font-semibold text-mac-secondary uppercase tracking-wider">Пол аудитории</div>
+        <div class="space-y-1.5">
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="font-medium text-mac-ink">Мужчины</span>
+              <span class="font-mono font-bold text-blue-600">58%</span>
+            </div>
+            <div class="w-full h-1.5 bg-black/[0.06] rounded-full overflow-hidden">
+              <div class="h-full bg-blue-600 rounded-full" style="width: 58%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="font-medium text-mac-ink">Женщины</span>
+              <span class="font-mono font-bold text-purple-600">42%</span>
+            </div>
+            <div class="w-full h-1.5 bg-black/[0.06] rounded-full overflow-hidden">
+              <div class="h-full bg-purple-600 rounded-full" style="width: 42%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-[#FAFAFA] border border-black/[0.04] p-3.5 space-y-2">
+        <div class="text-[10.5px] font-semibold text-mac-secondary uppercase tracking-wider">Возрастные группы</div>
+        <div class="space-y-1.5 font-mono text-[11px]">
+          <div class="flex justify-between">
+            <span class="text-mac-secondary">25–34 года:</span>
+            <span class="font-bold text-mac-ink">41% (Ядро ЦА)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-mac-secondary">35–44 года:</span>
+            <span class="font-bold text-mac-ink">34% (Платежеспособные)</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-mac-secondary">18–24 года:</span>
+            <span class="font-bold text-mac-ink">15%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-[#FAFAFA] border border-black/[0.04] p-3.5 space-y-2">
+        <div class="text-[10.5px] font-semibold text-mac-secondary uppercase tracking-wider">Крипта: Топ интересов</div>
+        <div class="flex flex-wrap gap-1 pt-0.5">
+          <span class="mac-pill mac-pill-blue text-[10px]">Бизнес и стартапы</span>
+          <span class="mac-pill mac-pill-blue text-[10px]">IT и технологии</span>
+          <span class="mac-pill mac-pill-blue text-[10px]">Инвестиции и недвижимость</span>
+          <span class="mac-pill mac-pill-blue text-[10px]">Автомобили</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# 6. Modal: Create / Edit Promoted Project #}
+<div id="new-project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+  <div class="w-full max-w-xl rounded-2xl bg-white border border-black/[0.1] shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b border-black/[0.06] pb-3">
+      <div>
+        <h3 id="project-modal-title" class="text-base font-bold text-mac-ink">Добавить рекламодателя / проект</h3>
+        <p class="text-xs text-mac-secondary">Настройте параметры интеграции, ссылки, UTM, счётчик Метрики и целевые действия.</p>
+      </div>
+      <button type="button"
+              onclick="document.getElementById('new-project-modal').classList.add('hidden');"
+              class="text-neutral-400 hover:text-neutral-700 p-1 rounded-lg text-sm cursor-pointer">
+        ✕
+      </button>
+    </div>
+
+    <form id="advertiser-project-form"
+          hx-post="/api/ui/ads/create"
+          hx-target="#ads-projects-list"
+          hx-swap="outerHTML"
+          hx-indicator="#create-proj-spin"
+          class="space-y-4"
+          onsubmit="document.getElementById('new-project-modal').classList.add('hidden');">
+
+      <input type="hidden" name="project_id" id="form-project-id" value="">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">Имя бренда (Brand Name) *</label>
+          <input type="text" name="brand_name" id="form-brand-name" required placeholder="Например: FreeAPI AI"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">Название продукта / услуги</label>
+          <input type="text" name="name" id="form-name" placeholder="Например: Бесплатный доступ к ИИ и API"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+      </div>
+
+      <div class="space-y-1 text-xs">
+        <label class="font-semibold text-mac-ink">Целевой URL сайта (Target URL) *</label>
+        <input type="url" name="target_url" id="form-target-url" required placeholder="https://example.com"
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        <p class="text-[10.5px] text-mac-secondary">Система автоматически добавит utm_source, utm_medium и utm_content к этой ссылке.</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">utm_source</label>
+          <input type="text" name="utm_source" id="form-utm-source" value="svodkapress"
+                 class="w-full rounded-lg border border-black/[0.12] bg-[#FAFAFA] px-2.5 py-1.5 text-xs text-mac-ink">
+        </div>
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">utm_medium</label>
+          <input type="text" name="utm_medium" id="form-utm-medium" value="native_news"
+                 class="w-full rounded-lg border border-black/[0.12] bg-[#FAFAFA] px-2.5 py-1.5 text-xs text-mac-ink">
+        </div>
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">utm_campaign</label>
+          <input type="text" name="utm_campaign" id="form-utm-campaign" placeholder="news_integration"
+                 class="w-full rounded-lg border border-black/[0.12] bg-[#FAFAFA] px-2.5 py-1.5 text-xs text-mac-ink">
+        </div>
+      </div>
+
+      <div class="space-y-1 text-xs">
+        <label class="font-semibold text-mac-ink">УТП (Уникальное торговое предложение) *</label>
+        <textarea name="usp" id="form-usp" rows="2" required placeholder="Например: Бесплатный доступ к передовым нейросетям и проверенным сценариям без зарубежных карт."
+                  class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none"></textarea>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">Какую проблему решает</label>
+          <input type="text" name="problem_solved" id="form-problem-solved" placeholder="Доступ к API нейросетей из РФ без ограничений"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">Текст кнопки действия (CTA)</label>
+          <input type="text" name="cta_text" id="form-cta-text" placeholder="Попробовать бесплатно"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+      </div>
+
+      <div class="space-y-1.5 text-xs">
+        <label class="font-semibold text-mac-ink">Тематические рубрики для интеграции</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 rounded-xl bg-[#FAFAFA] border border-black/[0.06] max-h-36 overflow-y-auto">
+          {% for cat_slug, cat_title in categories.items() %}
+            <label class="flex items-center gap-1.5 text-[11px] text-mac-secondary hover:text-mac-ink cursor-pointer">
+              <input type="checkbox" name="target_categories" value="{{ cat_slug }}" class="rounded text-[#0071E3] form-target-cat">
+              <span>{{ cat_title }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2 border-t border-black/[0.06]">
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">Номер счётчика Яндекс Метрики заказчика</label>
+          <input type="text" name="client_metrika_counter_id" id="form-metrika-counter" placeholder="Например: 113062256"
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+
+        <div class="space-y-1">
+          <label class="font-semibold text-mac-ink">OAuth-токен Метрики заказчика (опционально)</label>
+          <input type="password" name="client_metrika_token" id="form-metrika-token" placeholder="y0_AgAAAA..."
+                 class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3 py-2 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:bg-white focus:outline-none">
+        </div>
+      </div>
+
+      {# Conversion Goals in Create/Edit Modal #}
+      <div class="space-y-2 text-xs pt-2 border-t border-black/[0.06]">
+        <div class="flex items-center justify-between">
+          <label class="font-semibold text-mac-ink">Цели Яндекс.Метрики (для обучения /seo)</label>
+          <button type="button" onclick="addGoalRow('new-proj-goals-container')"
+                  class="text-[11px] font-semibold text-[#0071E3] hover:underline cursor-pointer">
+            + Добавить цель
+          </button>
+        </div>
+        <div id="new-proj-goals-container" class="space-y-1.5">
+          <div class="grid grid-cols-12 gap-2 items-center goal-row bg-[#FAFAFA] p-2 rounded-xl border border-black/[0.06]">
+            <div class="col-span-4">
+              <input type="text" name="goal_ids" placeholder="ID цели (напр. 300400)"
+                     class="w-full rounded-lg border border-black/[0.12] bg-white px-2 py-1 text-xs font-mono text-mac-ink">
+            </div>
+            <div class="col-span-5">
+              <input type="text" name="goal_names" placeholder="Название цели (напр. Регистрация)"
+                     class="w-full rounded-lg border border-black/[0.12] bg-white px-2 py-1 text-xs text-mac-ink">
+            </div>
+            <div class="col-span-2">
+              <input type="number" step="0.1" name="goal_target_crs" value="5.0" placeholder="CR %"
+                     class="w-full rounded-lg border border-black/[0.12] bg-white px-2 py-1 text-xs font-mono text-mac-ink">
+            </div>
+            <div class="col-span-1 text-center">
+              <button type="button" onclick="this.closest('.goal-row').remove()" class="text-rose-500 hover:text-rose-700 text-xs cursor-pointer">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.06]">
+        <button type="button"
+                onclick="document.getElementById('new-project-modal').classList.add('hidden');"
+                class="px-4 py-2 rounded-xl text-xs font-semibold text-mac-secondary hover:text-mac-ink hover:bg-black/[0.03] transition-colors cursor-pointer">
+          Отмена
+        </button>
+
+        <button type="submit"
+                class="px-5 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] text-white hover:bg-[#0077ED] transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer">
+          <div id="create-proj-spin" class="htmx-indicator">
+            <svg class="w-3 h-3 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+          </div>
+          <span>Сохранить рекламодателя</span>
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+  function showAdPreview(id, brandName, usp, ctaText, trackedUrl) {
+    document.getElementById('sample-brand-name').innerText = brandName || 'Рекламодатель';
+    document.getElementById('sample-usp-text').innerText = usp || 'Торговое предложение партнёра';
+    document.getElementById('sample-cta-label').innerText = (ctaText || 'Узнать подробности') + ' →';
+    document.getElementById('sample-cta-btn').href = trackedUrl || '#';
+    document.getElementById('sample-inset-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('sample-inset-container').classList.add('ring-2', 'ring-[#0071E3]');
+    setTimeout(() => {
+      document.getElementById('sample-inset-container').classList.remove('ring-2', 'ring-[#0071E3]');
+    }, 2000);
+  }
+
+  function addGoalRow(containerId, goalId = '', goalName = '', targetCr = '5.0') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-12 gap-2 items-center goal-row bg-white p-2 rounded-xl border border-black/[0.08]';
+    row.innerHTML = `
+      <div class="col-span-4 space-y-0.5">
+        <label class="text-[10px] text-mac-secondary font-medium">ID цели в Метрике</label>
+        <input type="text" name="goal_ids" value="${goalId}" placeholder="Напр: 30040012"
+               class="w-full rounded-lg border border-black/[0.12] px-2.5 py-1 text-xs font-mono text-mac-ink">
+      </div>
+      <div class="col-span-5 space-y-0.5">
+        <label class="text-[10px] text-mac-secondary font-medium">Название целевого действия</label>
+        <input type="text" name="goal_names" value="${goalName}" placeholder="Регистрация / Заявка"
+               class="w-full rounded-lg border border-black/[0.12] px-2.5 py-1 text-xs text-mac-ink">
+      </div>
+      <div class="col-span-2 space-y-0.5">
+        <label class="text-[10px] text-mac-secondary font-medium">План CR %</label>
+        <input type="number" step="0.1" min="0.1" max="100" name="goal_target_crs" value="${targetCr}"
+               class="w-full rounded-lg border border-black/[0.12] px-2 py-1 text-xs font-mono text-mac-ink">
+      </div>
+      <div class="col-span-1 pt-4 text-center">
+        <button type="button" onclick="this.closest('.goal-row').remove()"
+                class="text-rose-500 hover:text-rose-700 p-1 text-xs cursor-pointer" title="Удалить цель">
+          ✕
+        </button>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+
+  function openNewAdvertiserModal() {
+    document.getElementById('project-modal-title').innerText = 'Добавить рекламодателя / проект';
+    document.getElementById('advertiser-project-form').reset();
+    document.getElementById('form-project-id').value = '';
+    document.querySelectorAll('.form-target-cat').forEach(cb => { cb.checked = false; });
+    const goalsCont = document.getElementById('new-proj-goals-container');
+    if (goalsCont) {
+      goalsCont.innerHTML = '';
+      addGoalRow('new-proj-goals-container');
+    }
+    document.getElementById('new-project-modal').classList.remove('hidden');
+  }
+
+  function openEditAdvertiserModal(proj) {
+    document.getElementById('project-modal-title').innerText = 'Редактировать рекламодателя: ' + (proj.brand_name || proj.name || '');
+    document.getElementById('form-project-id').value = proj.id || '';
+    document.getElementById('form-brand-name').value = proj.brand_name || '';
+    document.getElementById('form-name').value = proj.name || '';
+    document.getElementById('form-target-url').value = proj.target_url || '';
+    document.getElementById('form-utm-source').value = proj.utm_source || 'svodkapress';
+    document.getElementById('form-utm-medium').value = proj.utm_medium || 'native_news';
+    document.getElementById('form-utm-campaign').value = proj.utm_campaign || '';
+    document.getElementById('form-usp').value = proj.usp || '';
+    document.getElementById('form-problem-solved').value = proj.problem_solved || '';
+    document.getElementById('form-cta-text').value = proj.cta_text || '';
+    document.getElementById('form-metrika-counter').value = proj.client_metrika_counter_id || '';
+    document.getElementById('form-metrika-token').value = '';
+    document.getElementById('form-metrika-token').placeholder = proj.client_metrika_token_masked || 'y0_AgAAAA...';
+
+    const cats = new Set(proj.target_categories || []);
+    document.querySelectorAll('.form-target-cat').forEach(cb => {
+      cb.checked = cats.has(cb.value);
+    });
+
+    const goalsCont = document.getElementById('new-proj-goals-container');
+    if (goalsCont) {
+      goalsCont.innerHTML = '';
+      const goals = proj.conversion_goals || [];
+      if (goals.length > 0) {
+        goals.forEach(g => addGoalRow('new-proj-goals-container', g.goal_id || '', g.name || '', g.target_cr_pct || '5.0'));
+      } else {
+        addGoalRow('new-proj-goals-container');
+      }
+    }
+    document.getElementById('new-project-modal').classList.remove('hidden');
+  }
+</script>
+{% endblock %}

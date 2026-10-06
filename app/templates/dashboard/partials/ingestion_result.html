@@ -1,0 +1,68 @@
+{#
+  Result of the manual ingestion trigger.
+
+  Every outcome renders through this one fragment — success, held lock and failure
+  alike — because this HTML replaces the target element directly. A raw error body
+  swapped into the page would leave the operator reading a traceback instead of a
+  sentence.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% elif lock_skipped %}
+  {#
+    A held run lock is reported as "already running", never as zero counters: an
+    operator shown "0 fetched" would reasonably conclude the sources are empty
+    when in fact no work was attempted.
+  #}
+  <div role="status"
+       class="rounded-lg border border-amber-900/60 bg-amber-950/30 px-4 py-3 text-sm
+              text-amber-200">
+    Сбор уже идёт: этот запрос ничего не собрал. Повторите, когда проход
+    завершится.
+  </div>
+{% else %}
+  {% set totals = report.totals %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-3">
+    <div class="text-sm font-medium text-emerald-200">{{ report.summary }}</div>
+    <dl class="mt-2 grid gap-x-4 gap-y-1 text-xs text-emerald-100/90 sm:grid-cols-3">
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">источников</dt>
+        <dd class="mono">{{ totals.sources }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">получено</dt>
+        <dd class="mono">{{ totals.fetched }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">записано</dt>
+        <dd class="mono">{{ totals.inserted }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">уже было</dt>
+        <dd class="mono">{{ totals.skipped_existing }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">дубликаты</dt>
+        <dd class="mono">{{ totals.duplicates }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">новых сюжетов</dt>
+        <dd class="mono">{{ totals.new_clusters }}</dd>
+      </div>
+    </dl>
+    {% if totals.failed_sources %}
+      <p class="mt-2 text-xs text-amber-300/90">
+        Источников с ошибками: {{ totals.failed_sources }}. Подробности — в
+        журнале.
+      </p>
+    {% endif %}
+    <p class="mt-2 text-xs text-emerald-300/70">
+      Длительность: {{ report.duration_ms }} мс.
+    </p>
+  </div>
+{% endif %}

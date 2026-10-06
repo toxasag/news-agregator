@@ -1,0 +1,70 @@
+{#
+  Apple macOS HIG / GETVOXLY: Slide-Over Sheet (Drawer) for Cluster Studio
+  Includes Backdrop blur, Slide-in Panel, Sticky Header, Scroll-lock & URL sync (?cluster=...)
+#}
+<div id="cluster-drawer-root"
+     class="fixed inset-0 z-50 {% if not selected_cluster %}hidden{% endif %}"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="cluster-drawer-title">
+  
+  {# Backdrop with Blur #}
+  <div id="cluster-drawer-backdrop"
+       onclick="ClusterDrawer.close()"
+       class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 {% if selected_cluster %}opacity-100{% else %}opacity-0{% endif %}"></div>
+
+  {# Slide-Over Sheet Container #}
+  <div id="cluster-drawer-panel"
+       class="absolute inset-y-0 right-0 flex h-full w-full flex-col border-l border-black/[0.08] bg-[#F5F5F7] shadow-2xl transition-transform duration-300 ease-out {% if selected_cluster %}translate-x-0{% else %}translate-x-full{% endif %} md:w-[760px] lg:w-[880px] xl:w-[980px]">
+    
+    {# Sticky Header #}
+    <div class="flex items-center justify-between border-b border-black/[0.06] px-5 py-3.5 bg-white/90 backdrop-blur-md sticky top-0 z-20 shadow-2xs">
+      <div class="flex items-center gap-2.5 min-w-0 pr-3">
+        <span class="mac-pill mac-pill-blue font-semibold shrink-0 text-xs">
+          ⚡ Студия сюжета
+        </span>
+        <h3 id="cluster-drawer-title"
+            class="text-sm font-semibold text-mac-ink truncate">
+          {% if selected_cluster %}{{ selected_cluster.title }}{% else %}Загрузка сюжета...{% endif %}
+        </h3>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <kbd class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-mono text-mac-secondary bg-black/[0.04] border border-black/[0.08] rounded-md">
+          Esc
+        </kbd>
+        <button type="button"
+                onclick="ClusterDrawer.close()"
+                aria-label="Закрыть панель студии"
+                class="rounded-xl p-1.5 text-mac-secondary hover:bg-black/[0.05] hover:text-mac-ink transition-colors cursor-pointer">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    {# Scrollable Body #}
+    <div id="cluster-drawer-scroll" class="flex-1 overflow-y-auto p-5 space-y-4">
+      <div id="cluster-studio">
+        {% if selected_cluster %}
+          {% set cluster = selected_cluster %}
+          {% include "partials/lab_cluster_detail.html" %}
+        {% else %}
+          {# Responsive Skeleton Loader #}
+          <div class="space-y-4 animate-pulse">
+            <div class="flex items-center gap-2">
+              <div class="h-5 w-24 bg-black/[0.06] rounded-full"></div>
+              <div class="h-5 w-32 bg-black/[0.06] rounded-full"></div>
+            </div>
+            <div class="h-8 bg-black/[0.06] rounded-xl w-3/4"></div>
+            <div class="h-28 bg-white rounded-2xl border border-black/[0.06]"></div>
+            <div class="h-44 bg-white rounded-2xl border border-black/[0.06]"></div>
+            <div class="h-64 bg-white rounded-2xl border border-black/[0.06]"></div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>

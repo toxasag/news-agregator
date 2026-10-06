@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Профиль{% endblock %}
+{% block heading %}Профиль администратора{% endblock %}
+{% block subheading %}
+  Смена логина и пароля. Обе операции требуют текущий пароль.
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">Текущая учётная запись</h2>
+    </header>
+    <dl class="grid gap-2 px-4 py-3 text-sm sm:grid-cols-2">
+      <div class="flex gap-2">
+        <dt class="text-slate-500">логин</dt>
+        <dd class="mono text-slate-200">{{ credentials.username }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">источник</dt>
+        <dd class="text-slate-300">
+          {% if credentials.from_database %}
+            база данных
+          {% else %}
+            переменные окружения
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+    {% if not credentials.from_database %}
+      <p class="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
+        Логин и пароль пока берутся из <span class="mono">.env</span>. После первой
+        смены они будут храниться в базе и применяться сразу, без перезапуска
+        контейнера.
+      </p>
+    {% endif %}
+  </section>
+
+  {# One shared target for both forms: only one of them can be submitted at a
+     time, and a single message area keeps the result where the operator is
+     looking. #}
+  <div id="profile-result"></div>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">Смена логина</h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        После смены логина текущая сессия останется активной, но входить нужно
+        будет под новым именем.
+      </p>
+    </header>
+    <form class="space-y-3 p-4"
+          hx-post="/api/ui/profile/username"
+          hx-target="#profile-result"
+          hx-swap="innerHTML"
+          hx-disabled-elt="find button[type='submit']">
+      <div>
+        <label for="new_username" class="block text-xs text-slate-400">
+          Новый логин
+        </label>
+        <input id="new_username" name="new_username" type="text" required
+               autocomplete="username"
+               value="{{ credentials.username }}"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white focus:border-slate-500 focus:outline-none">
+      </div>
+      <div>
+        <label for="username_current_password" class="block text-xs text-slate-400">
+          Текущий пароль
+        </label>
+        <input id="username_current_password" name="current_password"
+               type="password" required autocomplete="current-password"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white focus:border-slate-500 focus:outline-none">
+      </div>
+      <button type="submit"
+              class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                     text-slate-900 hover:bg-white disabled:opacity-50">
+        Сменить логин
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">Смена пароля</h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Хранится только bcrypt-хэш. Минимальная длина — {{ min_password_length }}
+        символов; у формы входа нет ограничения попыток, поэтому длинный пароль
+        здесь важнее, чем обычно.
+      </p>
+    </header>
+    <form class="space-y-3 p-4"
+          hx-post="/api/ui/profile/password"
+          hx-target="#profile-result"
+          hx-swap="innerHTML"
+          hx-disabled-elt="find button[type='submit']">
+      <div>
+        <label for="current_password" class="block text-xs text-slate-400">
+          Текущий пароль
+        </label>
+        <input id="current_password" name="current_password" type="password" required
+               autocomplete="current-password"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white focus:border-slate-500 focus:outline-none">
+      </div>
+      <div>
+        <label for="new_password" class="block text-xs text-slate-400">
+          Новый пароль
+        </label>
+        <input id="new_password" name="new_password" type="password" required
+               minlength="{{ min_password_length }}" autocomplete="new-password"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white focus:border-slate-500 focus:outline-none">
+      </div>
+      <div>
+        <label for="confirm_password" class="block text-xs text-slate-400">
+          Новый пароль ещё раз
+        </label>
+        <input id="confirm_password" name="confirm_password" type="password" required
+               minlength="{{ min_password_length }}" autocomplete="new-password"
+               class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                      py-2 text-sm text-white focus:border-slate-500 focus:outline-none">
+      </div>
+      <button type="submit"
+              class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                     text-slate-900 hover:bg-white disabled:opacity-50">
+        Сменить пароль
+      </button>
+    </form>
+  </section>
+
+</div>
+{% endblock %}

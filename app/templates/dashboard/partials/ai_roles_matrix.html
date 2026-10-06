@@ -1,0 +1,258 @@
+{#
+  Apple macOS HIG: AI Model Routing Matrix with Dynamic Working Model Selectors & Auto-Picker
+#}
+<section id="ai-roles-matrix-container"
+         class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-4">
+  
+  {# Header with title and Auto-Select button #}
+  <div class="border-b border-black/[0.06] pb-3 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-mac-ink">Матрица назначения моделей конвейера</h3>
+        <span class="mac-pill mac-pill-blue text-[10px]">Failover & Round-Robin</span>
+      </div>
+      <p class="text-xs text-mac-secondary mt-0.5">
+        Задачи распределяются по подтвержденным моделям подключенных провайдеров. При ошибке 429 конвейер мгновенно переключается на следующий ключ.
+      </p>
+    </div>
+
+    <div>
+      <button type="button"
+              hx-post="/api/ui/ai/roles/auto"
+              hx-target="#ai-roles-matrix-container"
+              hx-swap="outerHTML show:none"
+              class="rounded-xl bg-gradient-to-r from-[#0071E3] to-[#5856D6] text-white px-3.5 py-1.5 text-xs font-semibold hover:opacity-95 transition-opacity shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title="Автоматически подобрать и привязать лучшие проверенные модели из подключенных пулов">
+        <span>✨ Автоподбор лучших моделей</span>
+      </button>
+    </div>
+  </div>
+
+  {# Notice / Alert banner if any #}
+  {% if alert_message %}
+    <div class="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3 text-xs flex items-center justify-between animate-fadeIn">
+      <span class="text-emerald-800 font-medium flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        {{ alert_message }}
+      </span>
+      <span class="mac-pill mac-pill-good text-[10px]">Применено</span>
+    </div>
+  {% endif %}
+
+  <form hx-post="/api/ui/ai/roles"
+        hx-target="#ai-roles-matrix-container"
+        hx-swap="outerHTML show:none"
+        class="space-y-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
+      {# Set up working IDs for status badge checks #}
+      {% set working_chat_ids = catalog.chat_options | map(attribute='id') | list if catalog else [] %}
+      {% set working_embed_ids = catalog.embed_options | map(attribute='id') | list if catalog else [] %}
+      {% set working_image_ids = catalog.image_options | map(attribute='id') | list if catalog else [] %}
+
+      {# 1. Arbiter #}
+      {% set current_arbiter = routing.arbiter if routing else 'gemma-4-26b-a4b-it' %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-semibold text-mac-ink">
+            1. Арбитр дедупликации (L2 Семантика)
+          </label>
+          {% if current_arbiter in working_chat_ids %}
+            <span class="mac-pill mac-pill-good text-[10px]">✓ Проверена</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px]">⚠️ Не проверена</span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-mac-secondary leading-snug">
+          Быстрая проверка спорных пар новостей (ответ YES/NO).
+        </p>
+
+        <select name="role_arbiter"
+                class="w-full rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:outline-none">
+          <optgroup label="✓ Проверенные рабочие модели">
+            {% for opt in catalog.chat_options if catalog %}
+              <option value="{{ opt.id }}" {% if current_arbiter == opt.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+            {% endfor %}
+          </optgroup>
+          {% if current_arbiter not in working_chat_ids %}
+            <optgroup label="Текущая настройка">
+              <option value="{{ current_arbiter }}" selected>{{ current_arbiter }} (не проверена)</option>
+            </optgroup>
+          {% endif %}
+        </select>
+        {% if chains and chains.get('arbiter') and (chains.arbiter | length) > 1 %}
+          <div class="text-[10px] text-mac-secondary flex flex-wrap items-center gap-1 font-mono pt-1">
+            <span class="text-mac-ink font-semibold">Резерв:</span>
+            <span class="text-blue-600 font-medium">{{ chains.arbiter | join(' ➔ ') }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {# 2. Writer #}
+      {% set current_writer = routing.writer if routing else 'gemini-2.5-flash' %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-semibold text-mac-ink">
+            2. Генератор текста (Статьи и фактология)
+          </label>
+          {% if current_writer in working_chat_ids %}
+            <span class="mac-pill mac-pill-good text-[10px]">✓ Проверена</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px]">⚠️ Не проверена</span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-mac-secondary leading-snug">
+          Основное написание статьи по правилам выбранной рубрики.
+        </p>
+
+        <select name="role_writer"
+                class="w-full rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:outline-none">
+          <optgroup label="✓ Проверенные рабочие модели">
+            {% for opt in catalog.chat_options if catalog %}
+              <option value="{{ opt.id }}" {% if current_writer == opt.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+            {% endfor %}
+          </optgroup>
+          {% if current_writer not in working_chat_ids %}
+            <optgroup label="Текущая настройка">
+              <option value="{{ current_writer }}" selected>{{ current_writer }} (не проверена)</option>
+            </optgroup>
+          {% endif %}
+        </select>
+        {% if chains and chains.get('writer') and (chains.writer | length) > 1 %}
+          <div class="text-[10px] text-mac-secondary flex flex-wrap items-center gap-1 font-mono pt-1">
+            <span class="text-mac-ink font-semibold">Резерв:</span>
+            <span class="text-blue-600 font-medium">{{ chains.writer | join(' ➔ ') }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {# 3. SEO #}
+      {% set current_seo = routing.seo if routing else 'gemini-2.5-flash' %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-semibold text-mac-ink">
+            3. SEO, Wordstat и Анти-слоп
+          </label>
+          {% if current_seo in working_chat_ids %}
+            <span class="mac-pill mac-pill-good text-[10px]">✓ Проверена</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px]">⚠️ Не проверена</span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-mac-secondary leading-snug">
+          Подбор фокусных фраз Rank Math, вычитка клише и внутренняя перелинковка.
+        </p>
+
+        <select name="role_seo"
+                class="w-full rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:outline-none">
+          <optgroup label="✓ Проверенные рабочие модели">
+            {% for opt in catalog.chat_options if catalog %}
+              <option value="{{ opt.id }}" {% if current_seo == opt.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+            {% endfor %}
+          </optgroup>
+          {% if current_seo not in working_chat_ids %}
+            <optgroup label="Текущая настройка">
+              <option value="{{ current_seo }}" selected>{{ current_seo }} (не проверена)</option>
+            </optgroup>
+          {% endif %}
+        </select>
+        {% if chains and chains.get('seo') and (chains.seo | length) > 1 %}
+          <div class="text-[10px] text-mac-secondary flex flex-wrap items-center gap-1 font-mono pt-1">
+            <span class="text-mac-ink font-semibold">Резерв:</span>
+            <span class="text-blue-600 font-medium">{{ chains.seo | join(' ➔ ') }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {# 4. Embeddings #}
+      {% set current_embedding = routing.embedding if routing else 'local:fastembed' %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-semibold text-mac-ink">
+            4. Эмбеддинги (Векторизация сюжетов)
+          </label>
+          {% if current_embedding == 'local:fastembed' or current_embedding in working_embed_ids %}
+            <span class="mac-pill mac-pill-good text-[10px]">✓ Проверена (0 токенов)</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px]">⚠️ Внешняя</span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-mac-secondary leading-snug">
+          Векторный поиск дубликатов в pgvector. Локальный FastEmbed не тратит токены.
+        </p>
+
+        <select name="role_embedding"
+                class="w-full rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:outline-none">
+          <optgroup label="Рекомендуемые модели эмбеддингов">
+            {% for opt in catalog.embed_options if catalog %}
+              <option value="{{ opt.id }}" {% if current_embedding == opt.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+            {% endfor %}
+          </optgroup>
+          {% if current_embedding not in working_embed_ids and current_embedding != 'local:fastembed' %}
+            <optgroup label="Текущая настройка">
+              <option value="{{ current_embedding }}" selected>{{ current_embedding }} (не проверена)</option>
+            </optgroup>
+          {% endif %}
+        </select>
+      </div>
+
+      {# 5. Image Generator #}
+      {% set current_image = routing.image if (routing and routing.image) else 'disabled' %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2 md:col-span-2">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-semibold text-mac-ink">
+            5. Генератор обложек и иллюстраций
+          </label>
+          {% if current_image == 'disabled' %}
+            <span class="mac-pill mac-pill-secondary text-[10px]">Отключено</span>
+          {% elif current_image in working_image_ids %}
+            <span class="mac-pill mac-pill-good text-[10px]">✓ Активна</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px]">⚠️ Кастомная</span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-mac-secondary leading-snug">
+          Генерация горизонтальных обложек к статьям и сюжетам (16:9).
+        </p>
+
+        <select name="role_image"
+                class="w-full rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-mono text-mac-ink focus:border-[#0071E3] focus:outline-none">
+          <optgroup label="Модели генерации изображений">
+            {% for opt in catalog.image_options if catalog %}
+              <option value="{{ opt.id }}" {% if current_image == opt.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+            {% endfor %}
+          </optgroup>
+          {% if current_image not in working_image_ids %}
+            <optgroup label="Текущая настройка">
+              <option value="{{ current_image }}" selected>{{ current_image }} (кастомная)</option>
+            </optgroup>
+          {% endif %}
+        </select>
+      </div>
+
+    </div>
+
+    <div class="flex items-center justify-between pt-2">
+      <button type="submit"
+              class="rounded-xl bg-[#0071E3] text-white px-4 py-2 text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs cursor-pointer">
+        Сохранить матрицу моделей
+      </button>
+
+      <span class="text-[11px] text-mac-secondary">
+        Все вызовы автоматически распределяются по здоровым ключам пула.
+      </span>
+    </div>
+  </form>
+</section>

@@ -1,0 +1,42 @@
+{# The runs list, shown on load and after «К списку прогонов». #}
+{% if runs %}
+  <section class="rounded-lg border border-slate-800 bg-slate-900/60">
+    <header class="border-b border-slate-800 px-4 py-3">
+      <h2 class="text-sm font-medium text-slate-200">
+        Последние прогоны <span class="text-slate-500">({{ runs | length }})</span>
+      </h2>
+    </header>
+    <div class="divide-y divide-slate-800">
+      {% for run in runs %}
+        <button hx-get="/api/ui/lab/runs/{{ run.run_id }}"
+                hx-target="#lab-result"
+                hx-swap="innerHTML"
+                class="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-2.5
+                       text-left hover:bg-slate-900/40">
+          <span class="mono text-xs text-slate-400">{{ run.started_at }}</span>
+          <span class="text-xs text-slate-500">этапов: {{ run.stages | length }}</span>
+          <span class="mono text-xs text-slate-600">{{ run.duration_ms }} мс</span>
+          {% if run.tokens_spent %}
+            <span class="rounded bg-amber-950/60 px-2 py-0.5 text-xs text-amber-300">
+              токены
+            </span>
+          {% else %}
+            <span class="rounded bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300">
+              0 токенов
+            </span>
+          {% endif %}
+          <span class="rounded px-2 py-0.5 text-xs
+            {% if run.failed %}bg-rose-950/60 text-rose-300
+            {% else %}bg-emerald-950/60 text-emerald-300{% endif %}">
+            {{ 'ошибка' if run.failed else 'успех' }}
+          </span>
+        </button>
+      {% endfor %}
+    </div>
+  </section>
+{% else %}
+  <p class="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-8 text-center
+            text-sm text-slate-500">
+    Прогонов ещё не было.
+  </p>
+{% endif %}

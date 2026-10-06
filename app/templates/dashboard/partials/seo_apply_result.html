@@ -1,0 +1,46 @@
+<div class="space-y-4 py-4 text-center">
+  <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+  </div>
+  
+  <div>
+    <h4 class="text-base font-semibold text-white">Оптимизация успешно применена!</h4>
+    <p class="mt-1 text-xs text-slate-300 max-w-md mx-auto">{{ message }}</p>
+  </div>
+
+  <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-left text-xs space-y-2 max-w-lg mx-auto">
+    <div class="flex justify-between items-center text-slate-400 pb-2 border-b border-slate-800">
+      <span>Запись в журнале:</span>
+      <span class="font-mono text-emerald-400 font-semibold">#{{ record.id }}</span>
+    </div>
+    <div class="flex justify-between items-center">
+      <span class="text-slate-400">Новый Title:</span>
+      <span class="text-slate-200 font-medium truncate max-w-xs" title="{{ record.after_title }}">{{ record.after_title }}</span>
+    </div>
+    <div class="flex justify-between items-center">
+      <span class="text-slate-400">Снимок ДО:</span>
+      <span class="text-amber-300">Поз: {{ record.before_position }} | CTR: {{ (record.before_ctr * 100) | round(2) }}%</span>
+    </div>
+    <div class="flex justify-between items-center">
+      <span class="text-slate-400">Статус трекинга:</span>
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-300">
+        ⏳ Оценка (контрольные точки 7д и 14д)
+      </span>
+    </div>
+    {% if indexnow_pinged %}
+    <div class="flex justify-between items-center text-emerald-400 text-[11px] pt-1 border-t border-slate-800/80">
+      <span>IndexNow протокол:</span>
+      <span>✓ Уведомлены Bing, Яндекс, Seznam, Naver</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="pt-2">
+    <button type="button" onclick="document.getElementById('seo-optimize-modal').remove(); window.location.reload();"
+            class="rounded-md bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 transition">
+      Готово (обновить страницу)
+    </button>
+  </div>
+</div>

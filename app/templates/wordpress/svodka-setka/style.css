@@ -1,0 +1,1341 @@
+/*
+Theme Name: Svodka Setka
+Theme URI: https://svodka.press/
+Author: SvodkaPress NextGen
+Author URI: https://svodka.press/
+Description: Мобильная новостная тема в стиле дизайн-системы Сетка (hh.ru). Адаптивная светлая и темная палитра (prefers-color-scheme + переключатель), бесконечная лента новостей одна за одной (Infinite Scroll), нативные карточки подписки на Telegram и 100% доступность WCAG 2.2 AA.
+Version: 2.53.0
+Requires at least: 6.0
+Tested up to: 7.1
+Requires PHP: 8.1
+Text Domain: svodka-setka
+*/
+
+/* ==========================================================================
+   1. DESIGN TOKENS (SETKA_DESIGN.md / SETKA_SKILL.md)
+   ========================================================================== */
+
+:root {
+  /* Typography tokens */
+  --font-family-primary: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-base: 16px;
+  --font-size-lg: 17px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 28px;
+  --font-size-3xl: 34px;
+  --font-weight-base: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-base: 24px;
+  --line-height-article: 27px;
+
+  /* Spacing scale (Setka tokens) */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+
+  /* Radius & Motion tokens */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-pill: 9999px;
+  --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+
+  /* Light Mode (Default Day Surface) */
+  --color-surface-base: #F2F3F7;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-strong: #FFFFFF;
+  --color-surface-muted: #E6E8F0;
+  --color-surface-hover: #DCDFE8;
+  --color-surface-glass: rgba(255, 255, 255, 0.88);
+  --color-border-subtle: rgba(20, 20, 22, 0.08);
+  --color-border-strong: rgba(20, 20, 22, 0.16);
+
+  --color-text-primary: #141416;
+  --color-text-secondary: #5C5C66;
+  --color-text-tertiary: #8A8A94;
+  --color-text-inverse: #FFFFFF;
+
+  /* Brand & Telegram Accents */
+  --color-accent-primary: #2AABEE;
+  --color-accent-primary-hover: #1E96D8;
+  --color-accent-soft: rgba(42, 171, 238, 0.12);
+  --color-brand-badge: #141416;
+  --color-brand-badge-text: #FFFFFF;
+  --color-focus-ring: #2AABEE;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  color-scheme: light;
+}
+
+/* Automatic OS Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface-base: #000000;
+    --color-surface-raised: #18181A;
+    --color-surface-strong: #252527;
+    --color-surface-muted: #2F2F31;
+    --color-surface-hover: #3A3A3D;
+    --color-surface-glass: rgba(18, 18, 20, 0.86);
+    --color-border-subtle: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.16);
+
+    --color-text-primary: #E1E1E3;
+    --color-text-secondary: #9A9A9E;
+    --color-text-tertiary: #747478;
+    --color-text-inverse: #141416;
+
+    --color-accent-primary: #2AABEE;
+    --color-accent-primary-hover: #42B7F5;
+    --color-accent-soft: rgba(42, 171, 238, 0.16);
+    --color-brand-badge: #E1E1E3;
+    --color-brand-badge-text: #000000;
+
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+/* Explicit User Override: Dark Mode */
+:root[data-theme="dark"] {
+  --color-surface-base: #000000;
+  --color-surface-raised: #18181A;
+  --color-surface-strong: #252527;
+  --color-surface-muted: #2F2F31;
+  --color-surface-hover: #3A3A3D;
+  --color-surface-glass: rgba(18, 18, 20, 0.86);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #E1E1E3;
+  --color-text-secondary: #9A9A9E;
+  --color-text-tertiary: #747478;
+  --color-text-inverse: #141416;
+
+  --color-accent-primary: #2AABEE;
+  --color-accent-primary-hover: #42B7F5;
+  --color-accent-soft: rgba(42, 171, 238, 0.16);
+  --color-brand-badge: #E1E1E3;
+  --color-brand-badge-text: #000000;
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   2. RESET & BASE ACCESSIBILITY (WCAG 2.2 AA)
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  background-color: var(--color-surface-base);
+  color: var(--color-text-primary);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-surface-base);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--transition-fast), background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+img,
+video,
+iframe {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Hide broken Featured Image tags when src is empty */
+figure.svodka-featured img[src=""],
+figure.svodka-featured:has(img[src=""]) {
+  display: none !important;
+}
+
+/* Focus-visible rule (Setka Accessibility Requirement) */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-5);
+  background: var(--color-accent-primary);
+  color: #FFFFFF;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-xs);
+  z-index: 9999;
+  font-weight: var(--font-weight-semibold);
+}
+
+.skip-link:focus {
+  top: var(--space-5);
+}
+
+/* ==========================================================================
+   3. STICKY APP HEADER & CATEGORY RAIL
+   ========================================================================== */
+
+.setka-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.setka-header__inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.setka-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.025em;
+  color: var(--color-text-primary);
+}
+
+.setka-brand__logo {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setka-brand__logo svg {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.setka-brand__wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.setka-brand__wordmark-accent {
+  color: #0070FF;
+}
+
+.setka-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Telegram Header Pill Button */
+.setka-tg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent-primary);
+  color: #FFFFFF !important;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(42, 171, 238, 0.28);
+}
+
+.setka-tg-pill:hover {
+  background-color: var(--color-accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+.setka-tg-pill:active {
+  transform: translateY(0);
+}
+
+.setka-tg-pill svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+/* Icon Buttons (Search & Theme Toggle) */
+.setka-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.setka-icon-btn:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.setka-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Search Drawer Bar */
+.setka-search-bar {
+  display: none;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-4);
+}
+
+.setka-search-bar.is-open {
+  display: block;
+}
+
+.setka-search-form {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.setka-search-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-family: inherit;
+}
+
+.setka-search-submit {
+  height: 40px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  border: none;
+  background: var(--color-brand-badge);
+  color: var(--color-brand-badge-text);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+/* Horizontal Swipeable Category Chips Rail */
+.setka-cat-rail {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.setka-cat-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.setka-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.setka-chip:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.setka-chip.is-active {
+  background-color: var(--color-brand-badge);
+  color: var(--color-brand-badge-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ==========================================================================
+   4. LAYOUT WRAPPER & SETKA LEFT SIDEBAR (SETKA.RU ARCHITECTURE)
+   ========================================================================== */
+
+.setka-layout-wrapper {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  min-height: calc(100vh - 120px);
+  padding: 0 var(--space-4);
+  gap: var(--space-6);
+}
+
+/* Sticky Left Sidebar Navigation */
+.setka-sidebar-left {
+  display: none; /* Hidden on mobile/tablet by default */
+  width: 230px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 72px; /* right below sticky header */
+  max-height: calc(100vh - 84px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: var(--space-5) var(--space-3) var(--space-8) 0;
+  border-right: 1px solid var(--color-border-subtle);
+  background-color: transparent;
+}
+
+.setka-sidebar-left::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .setka-sidebar-left {
+    display: block;
+  }
+
+  /* When sidebar is visible, hide the redundant horizontal chips rail in header */
+  .setka-cat-rail {
+    display: none;
+  }
+}
+
+.setka-sidebar-left__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.setka-sidebar-left__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2) var(--space-1);
+}
+
+.setka-sidebar-left__title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+}
+
+.setka-sidebar-left__badge {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent-primary);
+  line-height: 1;
+}
+
+.setka-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setka-sidebar-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setka-sidebar-nav__item:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  transform: translateX(2px);
+}
+
+.setka-sidebar-nav__item.is-active {
+  background-color: var(--color-brand-badge);
+  color: var(--color-brand-badge-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.setka-sidebar-nav__emoji {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.setka-sidebar-nav__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setka-sidebar-nav__count {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-muted);
+  flex-shrink: 0;
+}
+
+.setka-sidebar-nav__item.is-active .setka-sidebar-nav__count {
+  background-color: rgba(0, 0, 0, 0.15);
+  color: currentColor;
+}
+
+/* ==========================================================================
+   5. MAIN FEED CONTAINER & STREAM CARDS
+   ========================================================================== */
+
+.setka-main {
+  flex: 1;
+  min-width: 0; /* Prevents flex children blowout */
+  width: 100%;
+  max-width: 720px;
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-9);
+}
+
+@media (max-width: 959px) {
+  .setka-main {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .setka-main {
+    padding: var(--space-3) 8px var(--space-9);
+  }
+}
+
+.setka-archive-header {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-6);
+  margin-bottom: var(--space-5);
+}
+
+.setka-archive-header__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.setka-archive-header__desc {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.setka-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.setka-feed > .svodka-promo-card,
+.setka-feed > .setka-tg-card {
+  margin: 0;
+}
+
+/* Feed Post Card (Setka Networking Post Anatomy) */
+.setka-card {
+  background-color: var(--color-surface-strong);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: border-color var(--transition-fast);
+}
+
+.setka-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.setka-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.setka-card__cat {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: 12px;
+}
+
+.setka-card__time {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.setka-card__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  line-height: 1.32;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+}
+
+.setka-card__title a {
+  display: block;
+}
+
+.setka-card__media {
+  margin: var(--space-1) 0;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background-color: var(--color-surface-muted);
+  aspect-ratio: 16 / 9;
+  max-height: 360px;
+}
+
+.setka-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 250ms ease;
+}
+
+.setka-card:hover .setka-card__media img {
+  transform: scale(1.015);
+}
+
+.setka-card__excerpt {
+  margin: 0;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.setka-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.setka-card__readmore {
+  color: var(--color-accent-primary);
+  font-weight: var(--font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   5. SINGLE ARTICLE VIEW & INFINITE SCROLL STREAM
+   ========================================================================== */
+
+.svodka-post {
+  background-color: var(--color-surface-strong);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8) var(--space-7);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 600px) {
+  .svodka-post {
+    padding: var(--space-6) var(--space-5);
+  }
+}
+
+.svodka-post__header {
+  margin-bottom: var(--space-6);
+}
+
+.svodka-post__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.svodka-post__title {
+  margin: 0 0 var(--space-5);
+  font-size: clamp(22px, 4.5vw, 32px);
+  line-height: 1.24;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.svodka-post__hero {
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--color-surface-muted);
+}
+
+.svodka-post__hero img {
+  width: 100%;
+  height: auto;
+  max-height: 460px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Article Body Typography */
+.svodka-post__content,
+.svodka-article__body {
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-article);
+  color: var(--color-text-primary);
+  overflow-wrap: break-word;
+}
+
+.svodka-post__content p,
+.svodka-article__body p {
+  margin: 0 0 18px;
+}
+
+.svodka-post__content h2,
+.svodka-article__body h2 {
+  font-size: 21px;
+  line-height: 1.32;
+  font-weight: var(--font-weight-bold);
+  margin: 28px 0 12px;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.svodka-post__content h3,
+.svodka-article__body h3 {
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: var(--font-weight-semibold);
+  margin: 22px 0 10px;
+  color: var(--color-text-primary);
+}
+
+.svodka-post__content ul,
+.svodka-post__content ol,
+.svodka-article__body ul,
+.svodka-article__body ol {
+  margin: 0 0 18px;
+  padding-left: 22px;
+}
+
+.svodka-post__content li,
+.svodka-article__body li {
+  margin-bottom: 8px;
+}
+
+.svodka-post__content a:not(.setka-tg-btn):not(.svodka-promo-btn),
+.svodka-article__body a:not(.setka-tg-btn):not(.svodka-promo-btn) {
+  color: var(--color-accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: var(--font-weight-medium);
+}
+
+.svodka-post__content blockquote,
+.svodka-article__body blockquote {
+  margin: 20px 0;
+  padding: var(--space-5) var(--space-6);
+  border-left: 4px solid var(--color-accent-primary);
+  background-color: var(--color-surface-muted);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  font-style: normal;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.svodka-post__content figure,
+.svodka-article__body figure {
+  margin: 20px 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.svodka-post__content figcaption,
+.svodka-article__body figcaption {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-2) 0;
+}
+
+/* Tags bar inside single post */
+.svodka-post__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.svodka-post__tag {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.svodka-post__tag:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/* Next Story Divider inside Infinite Scroll Stream */
+.setka-stream-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-6) 0 var(--space-4);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.setka-stream-divider::before,
+.setka-stream-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border-strong);
+}
+
+/* ==========================================================================
+   6. TELEGRAM CALLOUT & PROMO CARDS (SETKA TOKENIZED)
+   ========================================================================== */
+
+/* Both theme-rendered and pipeline-injected (.svodka-tg-callout / .svodka-tg-subscription-box) */
+.setka-tg-card,
+.svodka-tg-callout,
+.svodka-tg-subscription-box {
+  margin: var(--space-6) 0;
+  padding: var(--space-6);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(42, 171, 238, 0.14) 0%, rgba(42, 171, 238, 0.04) 100%);
+  border: 1px solid rgba(42, 171, 238, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.svodka-tg-callout > div:first-child > div:first-child,
+.setka-tg-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.svodka-tg-callout p,
+.setka-tg-card__text {
+  margin: var(--space-2) 0 0 !important;
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.svodka-tg-callout a,
+.setka-tg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-accent-primary) !important;
+  color: #FFFFFF !important;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none !important;
+  align-self: flex-start;
+  box-shadow: 0 2px 10px rgba(42, 171, 238, 0.25);
+}
+
+.svodka-tg-callout a:hover,
+.setka-tg-btn:hover {
+  background-color: var(--color-accent-primary-hover) !important;
+}
+
+@media (max-width: 520px) {
+  .svodka-tg-callout a,
+  .setka-tg-btn {
+    width: 100%;
+  }
+}
+
+/* Native Sponsor Promo Card (.svodka-promo-card) */
+.svodka-promo-card {
+  margin: var(--space-6) 0;
+  padding: var(--space-6);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-muted);
+  border: 1px solid var(--color-border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.svodka-promo-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.svodka-promo-card > div:first-child > span {
+  white-space: nowrap;
+}
+
+.svodka-promo-card h3 {
+  margin: 4px 0 !important;
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+  color: var(--color-text-primary);
+}
+
+.svodka-promo-card p {
+  margin: 0 !important;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.svodka-promo-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.svodka-promo-card a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 10px var(--space-6);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-brand-badge) !important;
+  color: var(--color-brand-badge-text) !important;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none !important;
+  text-align: center;
+}
+
+.svodka-promo-card > div:last-child > span {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* Hero photo attribution caption and strict 1-promo-per-post safeguard */
+.svodka-post__hero-caption {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 6px 12px;
+  border-top: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-muted);
+  text-align: right;
+}
+
+.svodka-post__hero-caption a {
+  color: var(--color-accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: var(--font-weight-medium);
+}
+
+.svodka-post__content .svodka-tg-callout,
+.svodka-post__content .svodka-tg-subscription-box,
+.svodka-post__content .svodka-promo-card,
+.svodka-post__content .code-block a[href*="OutVPN"],
+.svodka-post__content .code-block a[href*="outvpn"],
+.svodka-post__content .code-block a[href*="OutVpnBot"],
+.svodka-post__content .code-block img[src*="2026/02/image.png"],
+.svodka-post__content .code-block:has(img[src*="2026/02/image.png"]) > a {
+  display: none !important;
+}
+
+/* ==========================================================================
+   7. SENTINEL, PAGINATION & STICKY MOBILE TG BAR
+   ========================================================================== */
+
+#svodka-sentinel {
+  padding: var(--space-6) 0;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.setka-pagination {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-7);
+}
+
+.setka-pagination .page-numbers {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface-strong);
+  border: 1px solid var(--color-border-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.setka-pagination .page-numbers.current {
+  background-color: var(--color-brand-badge);
+  color: var(--color-brand-badge-text);
+}
+
+/* Footer */
+.setka-footer {
+  border-top: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-strong);
+  padding: var(--space-8) var(--space-5) calc(var(--space-9) + 64px);
+  margin-top: auto;
+}
+
+.setka-footer__inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.setka-footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+/* Promo Badges inside Feed Rotation Cards */
+.setka-promo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setka-promo-badge--ai {
+  background: rgba(0, 112, 255, 0.14);
+  color: #0070FF;
+  border: 1px solid rgba(0, 112, 255, 0.3);
+}
+
+.setka-promo-badge--vpn {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* ==========================================================================
+   8. STICKY BOTTOM ACTION BAR & SLIDE-UP SHEET
+   ========================================================================== */
+
+.setka-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  background: var(--color-surface-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--color-border-strong);
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.setka-bottom-bar__inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.setka-bottom-bar__btn {
+  appearance: none;
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-strong);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-xs);
+  min-height: 42px;
+  padding: 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.setka-bottom-bar__btn:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.setka-bottom-bar__btn:active {
+  transform: scale(0.98);
+}
+
+.setka-bottom-bar__btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-accent-primary);
+}
+
+.setka-bottom-bar__btn--accent {
+  background-color: var(--color-accent-soft);
+  border-color: rgba(42, 171, 238, 0.35);
+}
+
+@media (max-width: 420px) {
+  .setka-bottom-bar__btn {
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 4px;
+    font-size: 11px;
+  }
+  .setka-bottom-bar__btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Interactive Slide-Up Action Sheet */
+.setka-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.56);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.setka-sheet-backdrop[hidden] {
+  display: none !important;
+}
+
+.setka-sheet {
+  width: 100%;
+  max-width: 560px;
+  background-color: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-7);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.setka-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.setka-sheet__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.setka-sheet__close {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setka-sheet__lead {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.setka-sheet__list {
+  margin: 0 0 var(--space-6);
+  padding-left: 20px;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.setka-sheet__list li {
+  margin-bottom: 6px;
+}
+
+.setka-sheet__list a {
+  color: var(--color-accent-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.setka-sheet__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.setka-sheet__actions .setka-tg-btn {
+  width: 100%;
+}
+
+.setka-sheet__secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+}
+

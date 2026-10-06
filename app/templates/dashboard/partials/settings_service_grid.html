@@ -1,0 +1,873 @@
+{#
+  Apple macOS HIG Service Control Grid for /settings.
+  Every service is an independent card with:
+  - Honest status badge
+  - Key connection summary (1-2 lines)
+  - Quick "⚡ Проверить" button with local inline result box (#card-test-<id>) right inside the card
+  - "⚙️ Настроить" button (and card click) opening the Slide-Over Drawer (?service=<id>)
+#}
+<div class="space-y-7">
+
+  {# ========================================================================
+     ГРУППА 1: УПРАВЛЕНИЕ КОНВЕЙЕРОМ, ИИ И СИСТЕМНЫЕ КЛЮЧИ
+     ======================================================================== #}
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-mac-secondary">1. Ядро конвейера и Нейросети</h2>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {# 1. Pipeline Control Card #}
+      <div onclick="ServiceDrawer.open('pipeline', 'Режим работы конвейера')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#0071E3]/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-base shrink-0">
+                ⚡
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0071E3] transition-colors">Режим работы конвейера</h3>
+                <p class="text-[11px] text-mac-secondary">Расписание сбора и правила медиа</p>
+              </div>
+            </div>
+            {% if control.enabled %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Включён</span>
+            {% else %}
+              <span class="mac-pill mac-pill-warn text-[10px] shrink-0">⏸ На паузе</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between">
+              <span>Интервал сбора:</span>
+              <span class="font-mono font-semibold text-mac-ink">каждые {{ control.interval_minutes }} мин</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Медиа с ватермарками:</span>
+              <span class="font-medium text-mac-ink">{{ 'Разрешены' if control.allow_watermarked_source_media else 'Замена на ИИ' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] flex items-center justify-end">
+          <button type="button"
+                  onclick="event.stopPropagation(); ServiceDrawer.open('pipeline', 'Режим работы конвейера')"
+                  class="rounded-xl bg-[#0071E3]/10 hover:bg-[#0071E3] text-[#0071E3] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+            ⚙️ Настроить режим
+          </button>
+        </div>
+      </div>
+
+      {# 2. AI Settings & Model Matrix Card #}
+      <a href="/settings/ai"
+         class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#0071E3]/40 transition-all flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-base shrink-0">
+                ✦
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0071E3] transition-colors">Настройки ИИ и Моделей</h3>
+                <p class="text-[11px] text-mac-secondary">Пулы ключей и матрица ролей</p>
+              </div>
+            </div>
+            <span class="mac-pill mac-pill-blue text-[10px] shrink-0">Отдельный пульт</span>
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div>Google Gemini, OpenRouter, шлюзы и Fal AI</div>
+            <div class="text-mac-ink font-medium">Авторотация ключей и цепочки резерва</div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] flex items-center justify-end">
+          <span class="rounded-xl bg-[#0071E3] text-white px-3 py-1.5 text-[11px] font-semibold group-hover:bg-[#0077ED] transition-colors">
+            Открыть /settings/ai →
+          </span>
+        </div>
+      </a>
+
+      {# 3. Environment Keys & Fernet Card #}
+      <div onclick="ServiceDrawer.open('env_keys', 'Ключи доступа (.env & Fernet)')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#0071E3]/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-slate-500/10 text-slate-700 flex items-center justify-center font-bold text-base shrink-0">
+                🔐
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0071E3] transition-colors">Системные ключи (.env)</h3>
+                <p class="text-[11px] text-mac-secondary">Шифрование Fernet и переменные</p>
+              </div>
+            </div>
+            {% if encryption_ready %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Fernet готов</span>
+            {% else %}
+              <span class="mac-pill mac-pill-warn text-[10px] shrink-0">⚠️ Нет FERNET_KEY</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            {% set configured_keys = keys | selectattr('masked') | list | length %}
+            <div class="flex items-center justify-between">
+              <span>Задано в окружении:</span>
+              <span class="font-mono font-semibold text-mac-ink">{{ configured_keys }} из {{ keys | length }}</span>
+            </div>
+            <div class="text-[10.5px]">Маскированный просмотр без утечки в HTML</div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] flex items-center justify-end">
+          <button type="button"
+                  onclick="event.stopPropagation(); ServiceDrawer.open('env_keys', 'Ключи доступа (.env & Fernet)')"
+                  class="rounded-xl bg-[#0071E3]/10 hover:bg-[#0071E3] text-[#0071E3] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+            👁️ Посмотреть ключи
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ========================================================================
+     ГРУППА 2: ОСНОВНЫЕ ПЛОЩАДКИ ПУБЛИКАЦИИ (САЙТ И ГЛАВНЫЕ КАНАЛЫ)
+     ======================================================================== #}
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-mac-secondary">2. Основные площадки публикации</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {# 1. WordPress & SSH #}
+      <div onclick="ServiceDrawer.open('wordpress', 'WordPress & SSH (svodka.press)')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#0071E3]/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-xs shrink-0">
+                WP
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0071E3] transition-colors">WordPress & SSH</h3>
+                <p class="text-[11px] text-mac-secondary">Сайт издания и сервер</p>
+              </div>
+            </div>
+            {% if wp_conn.is_active and wp_conn.has_app_password %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Подключено</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроено</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Сайт:</span>
+              <span class="font-mono text-mac-ink truncate">{{ wp_conn.wp_base_url or 'https://svodka.press' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>SSH-ключ:</span>
+              <span class="font-medium text-mac-ink">{{ '🔒 Зашифрован' if wp_conn.has_ssh_key else 'По умолчанию' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/wordpress/test"
+                    hx-target="#card-test-wordpress"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-wordpress"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-wordpress" class="htmx-indicator text-[#0071E3]">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('wordpress', 'WordPress & SSH (svodka.press)')"
+                    class="rounded-xl bg-[#0071E3]/10 hover:bg-[#0071E3] text-[#0071E3] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-wordpress" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 2. Telegram Channel #}
+      <div onclick="ServiceDrawer.open('telegram', 'Telegram Канал (@svodka_press)')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#229ED9]/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#229ED9]/10 text-[#229ED9] flex items-center justify-center font-bold text-xs shrink-0">
+                TG
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#229ED9] transition-colors">Telegram Канал</h3>
+                <p class="text-[11px] text-mac-secondary">Публикация через Bot API</p>
+              </div>
+            </div>
+            {% if telegram_conn.is_ready and telegram_conn.status == 'active' %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Активен</span>
+            {% elif telegram_conn.has_token and telegram_conn.status == 'error' %}
+              <span class="mac-pill mac-pill-error text-[10px] shrink-0">🔴 Ошибка</span>
+            {% elif telegram_conn.has_token %}
+              <span class="mac-pill mac-pill-warn text-[10px] shrink-0">🟡 Проверить</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Канал:</span>
+              <span class="font-mono font-semibold text-mac-ink truncate">{{ telegram_conn.channel_id or '@svodka_press' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Бот:</span>
+              <span class="font-mono text-mac-ink truncate">{{ '@' ~ telegram_conn.bot_username if telegram_conn.bot_username else ('Токен задан' if telegram_conn.has_token else 'Нет токена') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/telegram/test"
+                    hx-target="#card-test-telegram"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-telegram"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-telegram" class="htmx-indicator text-[#229ED9]">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('telegram', 'Telegram Канал (@svodka_press)')"
+                    class="rounded-xl bg-[#229ED9]/10 hover:bg-[#229ED9] text-[#229ED9] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-telegram" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 3. VK Video & Community #}
+      <div onclick="ServiceDrawer.open('vk', 'VK Video & Сообщество ВКонтакте')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-[#0077FF]/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-[#0077FF]/10 text-[#0077FF] flex items-center justify-center font-bold text-xs shrink-0">
+                VK
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0077FF] transition-colors">ВКонтакте & Видео</h3>
+                <p class="text-[11px] text-mac-secondary">Стена группы и VK Video</p>
+              </div>
+            </div>
+            {% if vk_conn.has_token and vk_conn.status == 'active' %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Работает</span>
+            {% elif vk_conn.has_token and vk_conn.status == 'error' %}
+              <span class="mac-pill mac-pill-error text-[10px] shrink-0">🔴 Ошибка</span>
+            {% elif vk_conn.has_session or vk_conn.has_token %}
+              <span class="mac-pill mac-pill-warn text-[10px] shrink-0">🟡 Проверить</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Группа ID:</span>
+              <span class="font-mono font-semibold text-mac-ink truncate">{{ vk_conn.group_name or vk_conn.group_id }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Доступ:</span>
+              <span class="font-medium text-mac-ink">{{ 'Токен + ' ~ vk_conn.cookies_count ~ ' кук' if vk_conn.has_session else ('Токен API' if vk_conn.has_token else 'Нет сессии') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/vk/test"
+                    hx-target="#card-test-vk"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-vk"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-vk" class="htmx-indicator text-[#0077FF]">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('vk', 'VK Video & Сообщество ВКонтакте')"
+                    class="rounded-xl bg-[#0077FF]/10 hover:bg-[#0077FF] text-[#0077FF] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-vk" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 4. Yandex Dzen Studio #}
+      <div onclick="ServiceDrawer.open('dzen', 'Яндекс Дзен (Студия и Реклама)')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-orange-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold text-sm shrink-0">
+                Д
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-orange-600 transition-colors">Яндекс Дзен</h3>
+                <p class="text-[11px] text-mac-secondary">Публикация в Студию Дзена</p>
+              </div>
+            </div>
+            {% if dzen_config.is_active and dzen_config.status == 'valid' %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Активен</span>
+            {% elif dzen_config.status == 'expired' %}
+              <span class="mac-pill mac-pill-error text-[10px] shrink-0">🔴 Истекла</span>
+            {% elif dzen_config.has_session %}
+              <span class="mac-pill mac-pill-warn text-[10px] shrink-0">🟡 Куки загружены</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Канал:</span>
+              <span class="font-medium text-mac-ink truncate">{{ dzen_config.channel_name or 'Сводка Пресс' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Режим:</span>
+              <span class="font-mono text-mac-ink">{{ 'Публикация' if dzen_config.publication_mode == 'publish' else 'Черновик' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/dzen/probe"
+                    hx-target="#card-test-dzen"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-dzen"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-dzen" class="htmx-indicator text-orange-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('dzen', 'Яндекс Дзен (Студия и Реклама)')"
+                    class="rounded-xl bg-orange-500/10 hover:bg-orange-600 text-orange-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-dzen" class="empty:hidden"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ========================================================================
+     ГРУППА 3: СОЦСЕТИ ЧЕРЕЗ БРАУЗЕРНУЮ СЕССИЮ (КАЖДАЯ СОЦСЕТЬ ОТДЕЛЬНО!)
+     ======================================================================== #}
+  <section class="space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-mac-secondary">
+          3. Соцсети через браузерную сессию (Куки / Playwright)
+        </h2>
+      </div>
+      <button type="button"
+              onclick="openServerIpLoginModal()"
+              class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors cursor-pointer">
+        <span>🌐</span>
+        <span>Вход через IP сервера (YouTube / TenChat)</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for item in social_browser_conns %}
+        <div onclick="ServiceDrawer.open('social_{{ item.platform }}', '{{ item.title }}')"
+             class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-indigo-500/40 transition-all cursor-pointer flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2.5">
+              <div class="flex items-center gap-2.5">
+                <span class="w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0"
+                      style="background-color: {{ item.color }};">
+                  {{ item.badge }}
+                </span>
+                <div>
+                  <h3 class="text-xs font-semibold text-mac-ink group-hover:text-[#0071E3] transition-colors">{{ item.title }}</h3>
+                  <p class="text-[11px] text-mac-secondary line-clamp-1">{{ item.account_name or item.home_url }}</p>
+                </div>
+              </div>
+
+              {% if item.status == 'active' and item.is_configured %}
+                <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Активен</span>
+              {% elif item.has_session %}
+                <span class="mac-pill mac-pill-warn text-[10px] shrink-0">🔒 {{ item.cookies_count }} кук</span>
+              {% else %}
+                <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Выкл</span>
+              {% endif %}
+            </div>
+
+            <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+              <div class="flex items-center justify-between gap-2">
+                <span>Автопостинг:</span>
+                <span class="font-medium text-mac-ink">{{ 'Включён' if item.is_active else 'Выключен' }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span>Сессия:</span>
+                <span class="font-mono text-mac-ink">{{ item.cookies_count ~ ' кук в БД' if item.has_session else 'Не загружена' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between gap-2">
+              <button type="button"
+                      hx-post="/api/ui/settings/social-browser/{{ item.platform }}/probe"
+                      hx-target="#card-test-social_{{ item.platform }}"
+                      hx-swap="innerHTML"
+                      hx-indicator="#card-spin-social_{{ item.platform }}"
+                      hx-disabled-elt="this"
+                      class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+                <span>⚡ Проверить</span>
+                <span id="card-spin-social_{{ item.platform }}" class="htmx-indicator text-indigo-600">⏳</span>
+              </button>
+
+              {% if item.platform == 'tenchat' and item.status != 'active' %}
+                <button type="button"
+                        onclick="ServiceDrawer.open('social_tenchat', 'TenChat (tenchat.ru)')"
+                        class="rounded-xl bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1">
+                  <span>📲 Войти по СМС</span>
+                </button>
+              {% elif item.platform == 'youtube' and item.status != 'active' %}
+                <button type="button"
+                        onclick="ServiceDrawer.open('social_youtube', 'YouTube Сообщество')"
+                        class="rounded-xl bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1">
+                  <span>🌐 Подключить</span>
+                </button>
+              {% else %}
+                <button type="button"
+                        onclick="ServiceDrawer.open('social_{{ item.platform }}', '{{ item.title }}')"
+                        class="rounded-xl bg-[#0071E3]/10 hover:bg-[#0071E3] text-[#0071E3] hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+                  ⚙️ Настроить
+                </button>
+              {% endif %}
+            </div>
+            <div id="card-test-social_{{ item.platform }}" class="empty:hidden"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ========================================================================
+     ГРУППА 4: ПОИСКОВЫЕ СИСТЕМЫ, АНАЛИТИКА И ИНДЕКСАЦИЯ (КАЖДЫЙ СЕРВИС ОТДЕЛЬНО!)
+     ======================================================================== #}
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-mac-secondary">
+        4. Поисковые системы, Аналитика и SEO (каждый сервис отдельно)
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {# 1. Yandex Metrika #}
+      <div onclick="ServiceDrawer.open('yandex_metrika', 'Яндекс Метрика')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-amber-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-sm shrink-0">
+                М
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-amber-600 transition-colors">Яндекс Метрика</h3>
+                <p class="text-[11px] text-mac-secondary">Счётчики сайта и Дзена</p>
+              </div>
+            </div>
+            {% if yandex_conn.has_metrika %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Подключена</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроена</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Счётчик сайта:</span>
+              <span class="font-mono font-semibold text-mac-ink">{{ yandex_conn.metrika_counter_id or '—' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Счётчик Дзена:</span>
+              <span class="font-mono text-mac-ink">{{ yandex_conn.metrika_dzen_counter_id or '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/yandex/test-metrika"
+                    hx-target="#card-test-yandex_metrika"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-yandex_metrika"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-yandex_metrika" class="htmx-indicator text-amber-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('yandex_metrika', 'Яндекс Метрика')"
+                    class="rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-yandex_metrika" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 2. Yandex Webmaster #}
+      <div onclick="ServiceDrawer.open('yandex_webmaster', 'Яндекс Вебмастер')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-blue-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                Wb
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-blue-600 transition-colors">Яндекс Вебмастер</h3>
+                <p class="text-[11px] text-mac-secondary">Индексация и переобход</p>
+              </div>
+            </div>
+            {% if yandex_conn.has_webmaster %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Подключен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Host ID:</span>
+              <span class="font-mono text-mac-ink truncate">{{ yandex_conn.webmaster_host_id or 'Авто (svodka.press)' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>OAuth-токен:</span>
+              <span class="font-medium text-mac-ink">{{ '🔒 Сохранен' if yandex_conn.has_webmaster_token else 'Общий с Метрикой' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/yandex/test-webmaster"
+                    hx-target="#card-test-yandex_webmaster"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-yandex_webmaster"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-yandex_webmaster" class="htmx-indicator text-blue-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('yandex_webmaster', 'Яндекс Вебмастер')"
+                    class="rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-yandex_webmaster" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 3. Yandex Wordstat #}
+      <div onclick="ServiceDrawer.open('yandex_wordstat', 'Яндекс Wordstat')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-red-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center font-bold text-sm shrink-0">
+                W
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-red-600 transition-colors">Яндекс Wordstat</h3>
+                <p class="text-[11px] text-mac-secondary">Частотность и SEO-спрос</p>
+              </div>
+            </div>
+            {% if yandex_conn.has_wordstat %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 API активен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-blue text-[10px] shrink-0">🔵 ИИ-эмуляция</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Режим:</span>
+              <span class="font-medium text-mac-ink">{{ 'Cloud / Direct API' if yandex_conn.has_wordstat else 'Нейросеть (0 ₽)' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Folder ID:</span>
+              <span class="font-mono text-mac-ink truncate">{{ yandex_conn.wordstat_folder_id or '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/yandex/test-wordstat"
+                    hx-target="#card-test-yandex_wordstat"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-yandex_wordstat"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-yandex_wordstat" class="htmx-indicator text-red-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('yandex_wordstat', 'Яндекс Wordstat')"
+                    class="rounded-xl bg-red-500/10 hover:bg-red-600 text-red-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-yandex_wordstat" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 4. Google Analytics 4 #}
+      <div onclick="ServiceDrawer.open('google_ga4', 'Google Analytics 4 (GA4)')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-amber-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-xs shrink-0">
+                GA4
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-amber-600 transition-colors">Google Analytics 4</h3>
+                <p class="text-[11px] text-mac-secondary">Трафик и события GA4</p>
+              </div>
+            </div>
+            {% if google_conn.has_ga4 %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Подключен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Property ID:</span>
+              <span class="font-mono font-semibold text-mac-ink">{{ google_conn.ga4_property_id or '—' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Service Account:</span>
+              <span class="font-medium text-mac-ink truncate">{{ '🔒 Загружен' if google_conn.has_service_account else 'Нет ключа' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/google/test-ga4"
+                    hx-target="#card-test-google_ga4"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-google_ga4"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-google_ga4" class="htmx-indicator text-amber-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('google_ga4', 'Google Analytics 4 (GA4)')"
+                    class="rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-google_ga4" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 5. Google Search Console #}
+      <div onclick="ServiceDrawer.open('google_gsc', 'Google Search Console')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+                GSC
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-emerald-600 transition-colors">Google Search Console</h3>
+                <p class="text-[11px] text-mac-secondary">Индексация и клики Google</p>
+              </div>
+            </div>
+            {% if google_conn.has_gsc %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Подключен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Ресурс:</span>
+              <span class="font-mono text-mac-ink truncate">{{ google_conn.gsc_site_url or '—' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Service Account:</span>
+              <span class="font-medium text-mac-ink truncate">{{ '🔒 Загружен' if google_conn.has_service_account else 'Нет ключа' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/google/test-gsc"
+                    hx-target="#card-test-google_gsc"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-google_gsc"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-google_gsc" class="htmx-indicator text-emerald-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('google_gsc', 'Google Search Console')"
+                    class="rounded-xl bg-emerald-500/10 hover:bg-emerald-600 text-emerald-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-google_gsc" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 6. Bing Webmaster Tools #}
+      <div onclick="ServiceDrawer.open('bing_webmaster', 'Bing Webmaster Tools')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-teal-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-teal-500/15 text-teal-600 flex items-center justify-center font-bold text-base shrink-0">
+                b
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-teal-600 transition-colors">Bing Webmaster</h3>
+                <p class="text-[11px] text-mac-secondary">Поисковый индекс Bing</p>
+              </div>
+            </div>
+            {% if bing_conn.has_api_key %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Активен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Сайт:</span>
+              <span class="font-mono text-mac-ink truncate">{{ bing_conn.site_url or 'https://svodka.press/' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>API-ключ:</span>
+              <span class="font-mono text-mac-ink">{{ bing_conn.api_key_masked if bing_conn.has_api_key else 'Не задан' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/bing/test-bing"
+                    hx-target="#card-test-bing_webmaster"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-bing_webmaster"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-bing_webmaster" class="htmx-indicator text-teal-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('bing_webmaster', 'Bing Webmaster Tools')"
+                    class="rounded-xl bg-teal-500/10 hover:bg-teal-600 text-teal-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-bing_webmaster" class="empty:hidden"></div>
+        </div>
+      </div>
+
+      {# 7. IndexNow Protocol #}
+      <div onclick="ServiceDrawer.open('indexnow', 'Протокол IndexNow')"
+           class="group rounded-2xl border border-black/[0.08] bg-white p-4 shadow-2xs hover:shadow-md hover:border-blue-500/40 transition-all cursor-pointer flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-blue-600/15 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                IN
+              </div>
+              <div>
+                <h3 class="text-xs font-semibold text-mac-ink group-hover:text-blue-600 transition-colors">Протокол IndexNow</h3>
+                <p class="text-[11px] text-mac-secondary">Мгновенная индексация</p>
+              </div>
+            </div>
+            {% if bing_conn.has_indexnow_key %}
+              <span class="mac-pill mac-pill-good text-[10px] shrink-0">🟢 Включен</span>
+            {% else %}
+              <span class="mac-pill mac-pill-neutral text-[10px] shrink-0">⚪ Не настроен</span>
+            {% endif %}
+          </div>
+
+          <div class="text-[11px] text-mac-secondary space-y-1 bg-[#FAFAFA] rounded-xl p-2.5 border border-black/[0.04]">
+            <div class="flex items-center justify-between gap-2">
+              <span>Поисковики:</span>
+              <span class="font-medium text-mac-ink">Яндекс, Bing, Seznam</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span>Ключ:</span>
+              <span class="font-mono text-mac-ink">{{ bing_conn.indexnow_key_masked if bing_conn.has_indexnow_key else 'Не задан' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-black/[0.05] space-y-2" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button"
+                    hx-post="/api/ui/settings/bing/test-indexnow"
+                    hx-target="#card-test-indexnow"
+                    hx-swap="innerHTML"
+                    hx-indicator="#card-spin-indexnow"
+                    hx-disabled-elt="this"
+                    class="rounded-xl border border-black/[0.12] bg-white hover:bg-black/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-mac-ink transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1">
+              <span>⚡ Проверить</span>
+              <span id="card-spin-indexnow" class="htmx-indicator text-blue-600">⏳</span>
+            </button>
+            <button type="button"
+                    onclick="ServiceDrawer.open('indexnow', 'Протокол IndexNow')"
+                    class="rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-700 hover:text-white px-3 py-1.5 text-[11px] font-semibold transition-colors cursor-pointer">
+              ⚙️ Настроить
+            </button>
+          </div>
+          <div id="card-test-indexnow" class="empty:hidden"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>

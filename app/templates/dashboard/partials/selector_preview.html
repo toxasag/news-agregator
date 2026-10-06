@@ -1,0 +1,67 @@
+{#
+  Result of one selector dry run.
+
+  A partial extraction renders as a success carrying warnings, not as an error:
+  "which selector matched nothing" is exactly the question the selector builder
+  exists to answer, and a page that yielded a title but no body is a useful
+  answer rather than a failure.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-3 py-2
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2">
+    <dl class="grid gap-1">
+      <div class="flex gap-2">
+        <dt class="text-slate-500">URL</dt>
+        <dd class="mono truncate text-slate-300">{{ preview.url }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">заголовок</dt>
+        <dd class="truncate {{ 'text-slate-300' if preview.title else 'text-amber-300' }}">
+          {{ preview.title or '— не найден' }}
+        </dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">текст</dt>
+        <dd class="mono {{ 'text-slate-300' if preview.text_length else 'text-amber-300' }}">
+          {{ preview.text_length }} симв.
+        </dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">HTML тела</dt>
+        <dd class="mono text-slate-300">{{ preview.content_html_length }} симв.</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">стратегия</dt>
+        <dd class="mono text-slate-300">{{ preview.strategy }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">медиа</dt>
+        <dd class="mono text-slate-300">{{ preview.media_urls | length }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-slate-500">время</dt>
+        <dd class="mono text-slate-300">{{ preview.duration_ms }} мс</dd>
+      </div>
+    </dl>
+
+    {% if preview.text_preview %}
+      <p class="mt-2 border-t border-slate-800 pt-2 text-slate-400">
+        {{ preview.text_preview }}
+      </p>
+    {% endif %}
+
+    {% if preview.warnings %}
+      <ul class="mt-2 space-y-0.5 border-t border-slate-800 pt-2 text-amber-300/90">
+        {% for warning in preview.warnings %}
+          <li>{{ warning }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+{% endif %}

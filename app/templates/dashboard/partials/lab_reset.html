@@ -1,0 +1,44 @@
+{#
+  Queue reset result.
+
+  Counted per store rather than summarised as "done": the operator is about to
+  collect again on the strength of this message, and "34 posts, 21 clusters, 108
+  Redis keys" is checkable while "queue cleared" is not.
+#}
+{% if error %}
+  <div role="alert" class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3
+                           text-sm text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status" class="space-y-2 rounded-lg border border-emerald-900/60
+                            bg-emerald-950/30 px-4 py-3">
+    <div class="text-sm font-medium text-emerald-200">Очередь очищена</div>
+    <dl class="grid gap-1 text-xs sm:grid-cols-4">
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">постов</dt>
+        <dd class="mono text-emerald-100">{{ report.raw_news }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">кластеров</dt>
+        <dd class="mono text-emerald-100">{{ report.clusters }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">каналов сброшено</dt>
+        <dd class="mono text-emerald-100">{{ report.sources_rewound }}</dd>
+      </div>
+      <div class="flex gap-2">
+        <dt class="text-emerald-300/80">ключей Redis</dt>
+        <dd class="mono text-emerald-100">{{ report.redis_keys }}</dd>
+      </div>
+    </dl>
+    <p class="text-xs text-emerald-300/70">
+      Следующий сбор возьмёт по {{ posts_per_source }} постов с каждого активного
+      канала — как при первом запуске.
+    </p>
+    {% for warning in report.warnings %}
+      <p class="rounded border border-amber-900/60 bg-amber-950/20 px-3 py-2
+                text-xs text-amber-200">⚠ {{ warning }}</p>
+    {% endfor %}
+  </div>
+{% endif %}

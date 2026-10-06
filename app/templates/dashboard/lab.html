@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Лаборатория{% endblock %}
+{% block heading %}Лаборатория конвейера{% endblock %}
+{% block subheading %}Пошаговый контроль конвейера: сбор, MinHash дедупликация, ресерч и публикация{% endblock %}
+
+{% block actions %}
+  <div class="flex items-center gap-2">
+    <a href="/sources" class="rounded-xl border border-black/[0.08] bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 shadow-2xs transition-colors">
+      Источники ({{ status.total_sources }})
+    </a>
+    <a href="/articles" class="rounded-xl border border-black/[0.08] bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 shadow-2xs transition-colors">
+      Статьи ({{ status.published_articles }})
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  {% include "partials/lab_main_container.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.switchLabStyle = function(sel) {
+    if (!sel) return;
+    let prompts = window.labStylePrompts;
+    if (!prompts && sel.dataset && sel.dataset.prompts) {
+      try { prompts = JSON.parse(sel.dataset.prompts); } catch (e) {}
+    }
+    if (!prompts) return;
+    const ta = document.getElementById('lab-prompt-override');
+    if (ta && prompts[sel.value]) {
+      ta.value = prompts[sel.value];
+    }
+  };
+
+  window.selectWebCover = function(btn, imgUrl) {
+    const hiddenInput = document.getElementById('lab-selected-cover-url');
+    if (hiddenInput) {
+      hiddenInput.value = imgUrl;
+    }
+    document.querySelectorAll('.web-img-card').forEach(function(card) {
+      card.classList.remove('ring-2', 'ring-[#0071E3]', 'border-transparent');
+    });
+    const card = btn.closest('.web-img-card');
+    if (card) {
+      card.classList.add('ring-2', 'ring-[#0071E3]', 'border-transparent');
+    }
+    document.querySelectorAll('.btn-select-cover').forEach(function(b) {
+      b.innerHTML = '<span>⭐ На обложку</span>';
+      b.classList.remove('bg-blue-50', 'text-[#0071E3]', 'border-blue-300');
+    });
+    btn.innerHTML = '<span>✓ Выбрано обложкой</span>';
+    btn.classList.add('bg-blue-50', 'text-[#0071E3]', 'border-blue-300');
+  };
+
+  // --- GETVOXLY Pattern: Slide-Over Drawer with URL History Sync & Scroll-Lock ---
+  window.ClusterDrawer = {
+    paramName: 'cluster',
+    isOpen: {% if selected_cluster %}true{% else %}false{% endif %},
+
+    open: function(clusterId, titleText) {
+      if (!clusterId) return;
+      this.isOpen = true;
+
+      const root = document.getElementById('cluster-drawer-root');
+      const backdrop = document.getElementById('cluster-drawer-backdrop');
+      const panel = document.getElementById('cluster-drawer-panel');
+      const titleEl = document.getElementById('cluster-drawer-title');
+      const studioEl = document.getElementById('cluster-studio');
+
+      if (!root || !panel) return;
+
+      // 1. Lock document body scroll
+      document.body.style.overflow = 'hidden';
+
+      // 2. Set title and skeleton placeholder
+      if (titleText && titleEl) {
+        titleEl.textContent = titleText;
+      }
+      if (studioEl) {
+        studioEl.innerHTML = `
+          <div class="space-y-4 animate-pulse">
+            <div class="flex items-center gap-2">
+              <div class="h-5 w-24 bg-black/[0.06] rounded-full"></div>
+              <div class="h-5 w-32 bg-black/[0.06] rounded-full"></div>
+            </div>
+            <div class="h-8 bg-black/[0.06] rounded-xl w-3/4"></div>
+            <div class="h-28 bg-white rounded-2xl border border-black/[0.06]"></div>
+            <div class="h-44 bg-white rounded-2xl border border-black/[0.06]"></div>
+            <div class="h-64 bg-white rounded-2xl border border-black/[0.06]"></div>
+          </div>
+        `;
+      }
+
+      // 3. Show root and trigger CSS transition
+      root.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        if (backdrop) {
+          backdrop.classList.remove('opacity-0');
+          backdrop.classList.add('opacity-100');
+        }
+        if (panel) {
+          panel.classList.remove('translate-x-full');
+          panel.classList.add('translate-x-0');
+        }
+      });
+
+      // 4. Update browser URL via pushState (so Back button closes drawer)
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.get(this.paramName) !== clusterId) {
+        currentUrl.searchParams.set(this.paramName, clusterId);
+        window.history.pushState({ clusterDrawerId: clusterId }, '', currentUrl.toString());
+      }
+
+      // 5. Fetch cluster studio content via HTMX
+      if (window.htmx) {
+        window.htmx.ajax('GET', '/api/ui/lab/cluster/' + clusterId, {
+          target: '#cluster-studio',
+          swap: 'innerHTML'
+        });
+      }
+    },
+
+    close: function(fromHistory = false) {
+      if (!this.isOpen) return;
+      this.isOpen = false;
+
+      const root = document.getElementById('cluster-drawer-root');
+      const backdrop = document.getElementById('cluster-drawer-backdrop');
+      const panel = document.getElementById('cluster-drawer-panel');
+
+      if (backdrop) {
+        backdrop.classList.remove('opacity-100');
+        backdrop.classList.add('opacity-0');
+      }
+      if (panel) {
+        panel.classList.remove('translate-x-0');
+        panel.classList.add('translate-x-full');
+      }
+
+      // Restore document body scroll
+      document.body.style.overflow = '';
+
+      // Clean query parameter via replaceState (avoids polluting history)
+      if (!fromHistory) {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete(this.paramName);
+        currentUrl.searchParams.delete('record');
+        window.history.replaceState({}, '', currentUrl.pathname + (currentUrl.search ? currentUrl.search : ''));
+      }
+
+      // Hide container after slide-out animation finishes
+      setTimeout(() => {
+        if (!this.isOpen && root) {
+          root.classList.add('hidden');
+        }
+      }, 300);
+    },
+
+    init: function() {
+      // Escape key to close
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && this.isOpen) {
+          this.close();
+        }
+      });
+
+      // Browser Back/Forward navigation (popstate)
+      window.addEventListener('popstate', (e) => {
+        const currentUrl = new URL(window.location.href);
+        const clusterId = currentUrl.searchParams.get(this.paramName) || currentUrl.searchParams.get('record');
+        if (!clusterId && this.isOpen) {
+          this.close(true);
+        } else if (clusterId && !this.isOpen) {
+          this.open(clusterId);
+        }
+      });
+
+      // If page was loaded with open cluster (server-side render or URL)
+      if (this.isOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        const currentUrl = new URL(window.location.href);
+        const initialCluster = currentUrl.searchParams.get(this.paramName) || currentUrl.searchParams.get('record');
+        if (initialCluster) {
+          this.open(initialCluster);
+        }
+      }
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    window.ClusterDrawer.init();
+  });
+</script>
+{% endblock %}

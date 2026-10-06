@@ -1,0 +1,139 @@
+<div class="overflow-x-auto">
+  {% if rollback_message %}
+    <div class="m-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs flex items-center justify-between">
+      <span>{{ rollback_message }}</span>
+      <span class="font-mono text-[10px] text-emerald-600 font-semibold">200 OK</span>
+    </div>
+  {% endif %}
+  {% if not history %}
+    <p class="px-4 py-8 text-center text-sm text-slate-500">
+      В журнале пока нет сохранённых оптимизаций. Перейдите во вкладку «Очередь быстрых побед» и примените первую ИИ-оптимизацию.
+    </p>
+  {% else %}
+    <table class="min-w-full divide-y divide-slate-800 text-xs">
+      <thead class="bg-slate-900/80">
+        <tr>
+          <th class="px-3 py-2.5 text-left font-medium text-slate-400">ID / Дата</th>
+          <th class="px-3 py-2.5 text-left font-medium text-slate-400">URL / Рубрика</th>
+          <th class="px-3 py-2.5 text-left font-medium text-slate-400">До (Title / CTR / Поз)</th>
+          <th class="px-3 py-2.5 text-left font-medium text-slate-400">После (Новый Title)</th>
+          <th class="px-3 py-2.5 text-right font-medium text-slate-400">Дельта CTR</th>
+          <th class="px-3 py-2.5 text-right font-medium text-slate-400">Клики</th>
+          <th class="px-3 py-2.5 text-center font-medium text-slate-400">Результат</th>
+          <th class="px-3 py-2.5 text-center font-medium text-slate-400">Действие</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for item in history %}
+          <tr class="hover:bg-slate-900/40 transition">
+            <td class="px-3 py-2 text-slate-400 font-mono text-[11px] whitespace-nowrap">
+              <span class="text-slate-200 font-semibold">#{{ item.id }}</span>
+              <div class="text-[10px] text-slate-500">{{ item.applied_at[:10] }}</div>
+            </td>
+            <td class="px-3 py-2">
+              <div class="max-w-xs truncate text-slate-200 font-medium" title="{{ item.url }}">
+                {{ item.url }}
+              </div>
+              <span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] bg-slate-800 text-slate-400">
+                {{ item.category }}
+              </span>
+            </td>
+            <td class="px-3 py-2 max-w-xs">
+              <div class="truncate text-slate-400" title="{{ item.before_title }}">{{ item.before_title }}</div>
+              <div class="text-[10px] text-amber-300/90 mt-0.5">
+                Поз: {{ item.before_position }} | CTR: {{ (item.before_ctr * 100) | round(2) }}%
+              </div>
+            </td>
+            <td class="px-3 py-2 max-w-xs">
+              <div class="truncate text-slate-200 font-medium" title="{{ item.after_title }}">{{ item.after_title }}</div>
+              {% if item.learned_insight %}
+                <div class="text-[10px] text-slate-400 mt-0.5 truncate" title="{{ item.learned_insight }}">
+                  💡 {{ item.learned_insight }}
+                </div>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-right font-mono whitespace-nowrap">
+              {% if item.ctr_lift is not none %}
+                {% if item.ctr_lift > 0 %}
+                  <span class="text-emerald-400 font-semibold">+{{ (item.ctr_lift * 100) | round(2) }}%</span>
+                {% elif item.ctr_lift < 0 %}
+                  <span class="text-rose-400 font-semibold">{{ (item.ctr_lift * 100) | round(2) }}%</span>
+                {% else %}
+                  <span class="text-slate-400">0.00%</span>
+                {% endif %}
+              {% else %}
+                <span class="text-slate-500">—</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-right font-mono whitespace-nowrap">
+              {% if item.clicks_lift is not none %}
+                {% if item.clicks_lift > 0 %}
+                  <span class="text-emerald-400 font-semibold">+{{ item.clicks_lift }}</span>
+                {% elif item.clicks_lift < 0 %}
+                  <span class="text-rose-400">{{ item.clicks_lift }}</span>
+                {% else %}
+                  <span class="text-slate-400">0</span>
+                {% endif %}
+              {% else %}
+                <span class="text-slate-500">—</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-center whitespace-nowrap">
+              {% if item.outcome == 'win' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  🚀 УСПЕХ
+                </span>
+              {% elif item.outcome == 'loss' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  ⚠️ СПАД
+                </span>
+              {% elif item.outcome == 'neutral' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-300">
+                  ⚖️ Нейтрально
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  ⏳ Анализ
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-center whitespace-nowrap">
+              {% if item.status == 'rolled_back' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                  ↩️ Отозвано
+                </span>
+              {% elif item.outcome == 'loss' %}
+                <button
+                  type="button"
+                  hx-post="/dashboard/seo/optimizations/{{ item.id }}/rollback"
+                  hx-target="#seo-history-container"
+                  hx-swap="innerHTML"
+                  hx-confirm="Откатить заголовок и сниппет в WordPress и БД к исходным значениям?"
+                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-[11px] shadow-xs transition"
+                >
+                  ↩️ Откатить
+                </button>
+              {% elif item.outcome == 'win' %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  🧠 В базе знаний
+                </span>
+              {% else %}
+                <button
+                  type="button"
+                  hx-post="/dashboard/seo/optimizations/{{ item.id }}/rollback"
+                  hx-target="#seo-history-container"
+                  hx-swap="innerHTML"
+                  hx-confirm="Отозвать данную оптимизацию и восстановить исходные метатеги?"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                  title="Отменить оптимизацию"
+                >
+                  Отменить
+                </button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>

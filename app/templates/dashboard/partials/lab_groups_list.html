@@ -1,0 +1,345 @@
+{#
+  Apple macOS HIG: News Groups & Duplicates Inspection Component (Step 1)
+#}
+<div id="clusters-list-container" class="space-y-4">
+  {# Filter & Metric Bar #}
+  <div class="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-black/[0.08] p-4 shadow-sm">
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button"
+              onclick="document.querySelectorAll('.cluster-item').forEach(el => el.style.display = ''); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+              class="mac-pill mac-pill-blue cursor-pointer font-medium">
+        Все сюжеты ({{ groups_data.total_clusters }})
+        {% if groups_data.displayed_clusters and groups_data.displayed_clusters < groups_data.total_clusters %}
+          <span class="opacity-70 text-[11px] ml-1">· показано {{ groups_data.displayed_clusters }}</span>
+        {% endif %}
+      </button>
+
+      <button type="button"
+              onclick="document.querySelectorAll('.cluster-item').forEach(el => { el.style.display = parseFloat(el.dataset.aevi || 0) >= 55 ? '' : 'none'; }); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+              class="mac-pill bg-gradient-to-r from-amber-500/15 to-rose-500/15 text-amber-900 border border-amber-300 hover:from-amber-500/25 hover:to-rose-500/25 cursor-pointer font-semibold">
+        🔥 Топ-интерес (AEVI ≥ 55)
+      </button>
+
+      {% if groups_data.multi_source_clusters > 0 %}
+        <button type="button"
+                onclick="document.querySelectorAll('.cluster-item').forEach(el => { el.style.display = el.dataset.sources > 1 ? '' : 'none'; }); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+                class="mac-pill mac-pill-good cursor-pointer font-medium">
+          👥 С дубликатами ({{ groups_data.multi_source_clusters }})
+        </button>
+      {% endif %}
+
+      <button type="button"
+              onclick="document.querySelectorAll('.cluster-item').forEach(el => { el.style.display = el.dataset.sources == 1 ? '' : 'none'; }); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+              class="mac-pill mac-pill-neutral cursor-pointer font-medium">
+        ⚪ Одиночные ({{ groups_data.single_source_clusters }})
+      </button>
+
+      <button type="button"
+              onclick="document.querySelectorAll('.cluster-item').forEach(el => { el.style.display = el.dataset.published === '0' ? '' : 'none'; }); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+              class="mac-pill bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 cursor-pointer font-medium">
+        🆕 Неопубликованные ({{ groups_data.unpublished_clusters or 0 }})
+      </button>
+
+      {% if groups_data.published_clusters and groups_data.published_clusters > 0 %}
+        <button type="button"
+                onclick="document.querySelectorAll('.cluster-item').forEach(el => { el.style.display = el.dataset.published === '1' ? '' : 'none'; }); document.getElementById('filtered-posts-panel').style.display = 'none'; document.getElementById('clusters-container').style.display = '';"
+                class="mac-pill bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 cursor-pointer font-semibold">
+          ✅ Опубликованные ({{ groups_data.published_clusters }})
+        </button>
+      {% endif %}
+
+      {% if groups_data.filtered_posts_count > 0 %}
+        <button type="button"
+                onclick="document.getElementById('clusters-container').style.display = 'none'; document.getElementById('filtered-posts-panel').style.display = '';"
+                class="mac-pill mac-pill-warn cursor-pointer font-medium">
+          ⚠️ Отфильтровано ({{ groups_data.filtered_posts_count }})
+        </button>
+      {% endif %}
+    </div>
+
+    {# Limit Switcher #}
+    <div class="flex items-center gap-1.5 bg-black/[0.04] p-1 rounded-xl text-xs">
+      <span class="text-[11px] text-mac-secondary pl-1 font-medium">Лимит:</span>
+      <button type="button"
+              hx-get="/lab/groups?limit=50"
+              hx-target="#clusters-list-container"
+              hx-swap="outerHTML"
+              class="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all {% if groups_data.limit == 50 %}bg-white shadow-xs text-mac-ink font-semibold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        50
+      </button>
+      <button type="button"
+              hx-get="/lab/groups?limit=100"
+              hx-target="#clusters-list-container"
+              hx-swap="outerHTML"
+              class="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all {% if groups_data.limit == 100 %}bg-white shadow-xs text-mac-ink font-semibold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        100
+      </button>
+      <button type="button"
+              hx-get="/lab/groups?limit=250"
+              hx-target="#clusters-list-container"
+              hx-swap="outerHTML"
+              class="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all {% if groups_data.limit == 250 %}bg-white shadow-xs text-mac-ink font-semibold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        250
+      </button>
+      <button type="button"
+              hx-get="/lab/groups?limit=1000"
+              hx-target="#clusters-list-container"
+              hx-swap="outerHTML"
+              class="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all {% if groups_data.limit >= 1000 %}bg-white shadow-xs text-mac-ink font-semibold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        Все ({{ groups_data.total_clusters }})
+      </button>
+    </div>
+  </div>
+
+  {# News Groups Cards Container #}
+  <div id="clusters-container" class="space-y-3">
+    {% if not groups_data.groups %}
+      <div class="rounded-2xl border border-dashed border-black/[0.12] bg-white/60 p-8 text-center">
+        <div class="text-2xl mb-2">📭</div>
+        <div class="text-sm font-semibold text-mac-ink">Очередь новостей пуста</div>
+        <div class="mt-1 text-xs text-mac-secondary max-w-md mx-auto">
+          Нажмите кнопку <strong>«Сбросить очередь и собрать»</strong> вверху, чтобы запустить первый сбор по 50 сообщений с активных каналов.
+        </div>
+      </div>
+    {% else %}
+      {% for g in groups_data.groups %}
+        <div class="cluster-item rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm transition-all hover:border-black/[0.15] {% if g.is_published %}bg-emerald-500/[0.03] border-emerald-500/25{% endif %}"
+             data-sources="{{ g.source_count }}"
+             data-aevi="{{ g.aevi_score or 0 }}"
+             data-published="{{ 1 if g.is_published else 0 }}">
+          
+          {# Card Header #}
+          <div class="flex flex-wrap items-start justify-between gap-2 mb-2.5">
+            <div class="flex flex-wrap items-center gap-1.5">
+              {% if g.is_published %}
+                <span class="mac-pill bg-emerald-500/15 text-emerald-800 border border-emerald-400 font-bold text-[11px] inline-flex items-center gap-1.5 shadow-2xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                  ✅ Опубликовано
+                </span>
+                {% if g.wp_post_url %}
+                  <a href="{{ g.wp_post_url }}" target="_blank" rel="noopener noreferrer"
+                     class="text-[11px] text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-0.5">
+                    🌐 На сайт ↗
+                  </a>
+                {% endif %}
+                {% if g.dzen_post_url %}
+                  <a href="{{ g.dzen_post_url }}" target="_blank" rel="noopener noreferrer"
+                     class="text-[11px] text-orange-600 hover:text-orange-800 underline font-medium inline-flex items-center gap-0.5">
+                    📱 В Дзен ↗
+                  </a>
+                {% endif %}
+              {% endif %}
+
+              {% if g.aevi_score is defined and g.aevi_score > 0 %}
+                <span class="mac-pill {% if g.aevi_level == 'viral' %}bg-gradient-to-r from-amber-500 to-rose-600 text-white font-bold shadow-xs{% elif g.aevi_level == 'high' %}bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-semibold{% elif g.aevi_level == 'medium' %}mac-pill-blue font-medium{% else %}mac-pill-neutral{% endif %} text-[11px]"
+                      title="AEVI (Индекс привлекательности): {{ g.aevi_score }}/100&#10;• Поисковый спрос: {{ g.aevi.search_demand_score if g.aevi else 0 }}/30&#10;• Удержание рубрики: {{ g.aevi.historical_engagement_score if g.aevi else 0 }}/30&#10;• Яндекс.Крипта: {{ g.aevi.crypta_affinity_score if g.aevi else 0 }}/25&#10;• Фактура: {{ g.aevi.fact_richness_score if g.aevi else 0 }}/15">
+                  {{ g.aevi_badge }} {{ g.aevi_score }}/100
+                </span>
+              {% endif %}
+
+              {% if g.category_status == "classified" %}
+                <span class="mac-pill mac-pill-blue font-medium">{{ g.category_title }}</span>
+              {% else %}
+                <span class="mac-pill mac-pill-neutral font-medium">{{ g.category_title }}</span>
+              {% endif %}
+              
+              {% if g.risk_level == "green" %}
+                <span class="mac-pill mac-pill-good">Безопасно</span>
+              {% elif g.risk_level == "yellow" %}
+                <span class="mac-pill mac-pill-warn">Внимание</span>
+              {% elif g.risk_level == "red" %}
+                <span class="mac-pill mac-pill-danger">Риск</span>
+              {% endif %}
+
+              {# Explicit distinction between single vs multi-channel story #}
+              {% if g.source_count > 1 %}
+                <span class="mac-pill mac-pill-good font-semibold">
+                  👥 {{ g.source_count }} каналов ({{ g.posts_count }} сообщ.)
+                </span>
+              {% else %}
+                <span class="mac-pill mac-pill-neutral font-medium">
+                  ⚪ 1 канал: {{ g.source_names[0] if g.source_names else 'Telegram' }}
+                </span>
+              {% endif %}
+
+              {% if g.is_published %}
+                <span class="mac-pill mac-pill-good">Опубликовано</span>
+              {% endif %}
+            </div>
+
+            {# Action CTA: open in Studio Drawer #}
+            <button type="button"
+                    onclick="ClusterDrawer.open('{{ g.cluster_id }}', '{{ g.title | e | replace("'", "\\'") }}')"
+                    class="rounded-xl bg-[#0071E3]/10 text-[#0071E3] hover:bg-[#0071E3] hover:text-white px-3 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer">
+              <span>Студия сюжета →</span>
+            </button>
+          </div>
+
+          {# Headline #}
+          <h4 class="text-sm font-semibold text-mac-ink mb-1.5 leading-snug hover:text-[#0071E3] transition-colors cursor-pointer"
+              onclick="ClusterDrawer.open('{{ g.cluster_id }}', '{{ g.title | e | replace("'", "\\'") }}')">
+            {{ g.title }}
+          </h4>
+
+          {# AEVI Audience Prediction row #}
+          {% if g.aevi_score is defined and g.aevi_score > 0 %}
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 text-[11px] text-mac-secondary bg-[#FAFAFA] border border-black/[0.04] px-2.5 py-1.5 rounded-xl">
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="font-semibold text-mac-ink">🎯 Сегмент ЦА:</span>
+                <span class="truncate text-mac-ink/80">{{ g.target_audience }}</span>
+              </div>
+              <div class="flex items-center gap-2 font-mono shrink-0">
+                <span title="Прогноз визитов">~{{ g.predicted_views }} виз.</span>
+                <span>•</span>
+                <span title="Ожидаемое время чтения">~{{ g.predicted_reading_sec }}с чтение</span>
+                <span>•</span>
+                <span title="Ожидаемый CTR баннеров">CTR ~{{ g.predicted_ctr_pct }}%</span>
+              </div>
+            </div>
+          {% endif %}
+
+          {# Sources summary pills #}
+          {% if g.source_count > 1 %}
+            <div class="flex flex-wrap items-center gap-1.5 mb-3 text-xs text-mac-secondary">
+              <span class="text-[11px] font-medium text-mac-secondary">Каналы сюжета:</span>
+              {% for sname in g.source_names %}
+                <span class="rounded-lg bg-black/[0.04] px-2 py-0.5 text-[11px] text-mac-ink font-medium">
+                  {{ sname }}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {# Primary Text Snippet #}
+          {% if g.primary_post %}
+            <div class="rounded-xl bg-[#FAFAFA] border border-black/[0.04] p-3 text-xs text-mac-ink/90 mb-3">
+              <div class="flex items-center justify-between text-[11px] text-mac-secondary mb-1">
+                <span class="font-semibold text-mac-ink">
+                  📌 Первоисточник: {{ g.primary_post.source_name }}
+                </span>
+                <span>{{ g.primary_post.created_at }}</span>
+              </div>
+              <p class="line-clamp-2 leading-relaxed text-mac-ink">
+                {{ g.primary_post.text }}
+              </p>
+            </div>
+          {% endif %}
+
+          {# Expandable Duplicates Drawer #}
+          {% if g.duplicates %}
+            <details class="group mt-2">
+              <summary class="cursor-pointer text-xs font-medium text-[#0071E3] hover:underline flex items-center gap-1">
+                <span>Показать все дубликаты из других каналов ({{ g.duplicates | length }})</span>
+                <span class="text-[10px] text-mac-secondary group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+
+              <div class="mt-2.5 space-y-2 border-t border-black/[0.06] pt-2.5">
+                {% for dup in g.duplicates %}
+                  <div class="rounded-xl bg-white border border-black/[0.06] p-2.5 text-xs">
+                    <div class="flex flex-wrap items-center justify-between gap-1 text-[11px] mb-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-semibold text-mac-ink">{{ dup.source_name }}</span>
+                        <span class="mac-pill mac-pill-neutral text-[10px]">{{ dup.status_label }}</span>
+                        {% if dup.similarity %}
+                          <span class="mac-pill mac-pill-blue text-[10px]">Сходство: {{ dup.similarity }}</span>
+                        {% endif %}
+                      </div>
+                      <div class="flex items-center gap-2 text-mac-secondary">
+                        <span>{{ dup.created_at }}</span>
+                        {% if dup.post_url %}
+                          <a href="{{ dup.post_url }}" target="_blank" rel="noopener" class="text-[#0071E3] hover:underline">
+                            Ссылка ↗
+                          </a>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <p class="text-mac-secondary line-clamp-2 leading-relaxed">
+                      {{ dup.text }}
+                    </p>
+                  </div>
+                {% endfor %}
+              </div>
+            </details>
+          {% endif %}
+
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  {# Filtered Posts Section (0-token heuristics) #}
+  <div id="filtered-posts-panel" style="display: none;" class="space-y-3">
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-4">
+      <div class="border-b border-black/[0.06] pb-3">
+        <h4 class="text-sm font-semibold text-mac-ink">Отфильтрованные сообщения (0 токенов)</h4>
+        <p class="text-xs text-mac-secondary">
+          Сообщения, отклонённые эвристическим фильтром на шаге сбора. Вы можете просмотреть полный текст, медиа и при необходимости <strong>разблокировать новость в 1 клик</strong>.
+        </p>
+      </div>
+
+      {% if not groups_data.filtered_posts %}
+        <div class="text-xs text-mac-secondary text-center py-6">Нет отфильтрованных постов.</div>
+      {% else %}
+        <div class="space-y-3">
+          {% for fp in groups_data.filtered_posts %}
+            <div class="rounded-xl border border-black/[0.08] bg-[#FAFAFA] p-4 text-xs space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-mac-ink text-sm">{{ fp.source_name }}</span>
+                  <span class="text-mac-secondary text-[11px]">{{ fp.created_at }}</span>
+                  {% if fp.post_url %}
+                    <a href="{{ fp.post_url }}" target="_blank" rel="noopener" class="text-[#0071E3] hover:underline text-[11px]">
+                      Открыть пост в TG ↗
+                    </a>
+                  {% endif %}
+                </div>
+
+                {# 1-Click Unblock Button #}
+                <button hx-post="/api/ui/lab/unblock-post/{{ fp.id }}"
+                        hx-target="#lab-main-container"
+                        hx-swap="innerHTML"
+                        class="rounded-xl bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-700 shadow-2xs transition-colors flex items-center gap-1.5">
+                  <span>⚡ Разблокировать в сюжеты</span>
+                </button>
+              </div>
+
+              {# Reasons badges #}
+              <div class="flex flex-wrap gap-1.5">
+                <span class="text-[11px] font-medium text-mac-secondary">Причины фильтра:</span>
+                {% for r in fp.reasons %}
+                  <span class="mac-pill mac-pill-warn text-[10px]">
+                    ⚠️ {{ r.label }}
+                  </span>
+                {% endfor %}
+              </div>
+
+              {# Full text #}
+              <div class="rounded-xl bg-white border border-black/[0.04] p-3 text-mac-ink leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto">
+                {{ fp.full_text }}
+              </div>
+
+              {# Attached media if any #}
+              {% if fp.media %}
+                <div class="space-y-1.5">
+                  <div class="text-[11px] font-semibold text-mac-secondary">Медиасодержимое:</div>
+                  <div class="flex flex-wrap gap-2">
+                    {% for m in fp.media %}
+                      {% if m.url %}
+                        <img src="{{ m.url }}" class="w-20 h-20 object-cover rounded-xl border border-black/[0.08]" alt="Медиа">
+                      {% else %}
+                        <div class="w-20 h-20 rounded-xl bg-black/[0.05] border border-black/[0.08] flex items-center justify-center text-[10px] text-mac-secondary">
+                          Медиафайл
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

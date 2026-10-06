@@ -1,0 +1,30 @@
+{#
+  Rows of the Telegram dialogs table. Included inside the wrap element that
+  bulk actions and the import button target, so every path renders the same
+  markup.
+#}
+<table class="min-w-full divide-y divide-slate-800 text-sm">
+  <thead class="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-500">
+    <tr>
+      <th class="px-3 py-2 text-left font-medium">Диалог</th>
+      <th class="px-2 py-2 text-left font-medium">ID</th>
+      <th class="px-2 py-2 text-center font-medium">Сбор</th>
+      <th class="px-2 py-2 text-center font-medium">Медиа</th>
+      <th class="px-2 py-2 text-right font-medium">Собрано</th>
+      <th class="px-2 py-2 text-right font-medium">Новее отметки</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-800">
+    {% for row in rows %}
+      {% include "partials/source_row.html" %}
+    {% else %}
+      <tr>
+        <td colspan="6" class="px-3 py-6 text-center text-sm text-slate-500">
+          Диалоги не добавлены. Нажмите «Обновить список» — каналы, группы,
+          чаты и боты со всех аккаунтов появятся здесь. Сбор начнётся только
+          у отмеченных.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

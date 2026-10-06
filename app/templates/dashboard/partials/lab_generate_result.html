@@ -1,0 +1,643 @@
+{#
+  Apple macOS HIG: Generation Step Result (Article Preview, SEO/Wordstat & Mandatory Internal Linking)
+#}
+<div class="space-y-4">
+  {# Anti-Slop & Quality Indicators #}
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-3">
+    <div class="flex flex-wrap items-center gap-2">
+      {% if slop_clean %}
+        <span class="mac-pill mac-pill-good font-medium">
+          ✓ Анти-слоп: Чисто (плотность {{ slop_density }})
+        </span>
+      {% else %}
+        <span class="mac-pill mac-pill-warn font-medium">
+          ⚠️ Анти-слоп: Исправлены клише (плотность {{ slop_density }})
+        </span>
+      {% endif %}
+      <span class="mac-pill mac-pill-neutral font-mono text-[11px]">Черновик #{{ article_id }}</span>
+      {% if image_layout == 'inline' %}
+        <span class="mac-pill mac-pill-good text-[10.5px]">📸 Фото в тексте статьи</span>
+      {% elif image_layout == 'slideshow' %}
+        <span class="mac-pill mac-pill-good text-[10.5px]">🎠 Слайдшоу лентой</span>
+      {% elif image_layout == 'cover_only' %}
+        <span class="mac-pill mac-pill-neutral text-[10.5px]">🖼️ Только обложка</span>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button type="button"
+              hx-post="/api/ui/lab/cluster/{{ cluster_id }}/publish"
+              hx-target="#step-publish-wp-container"
+              hx-swap="innerHTML"
+              hx-indicator="#step-wp-spinner"
+              class="rounded-xl bg-emerald-600 text-white px-3 py-1 text-xs font-semibold hover:bg-emerald-700 shadow-2xs transition-colors cursor-pointer flex items-center gap-1">
+        <span>🌐 На сайт</span>
+      </button>
+      <button type="button"
+              hx-post="/api/ui/lab/cluster/{{ cluster_id }}/publish-dzen"
+              hx-target="#step-publish-dzen-container"
+              hx-swap="innerHTML"
+              hx-indicator="#step-dzen-spinner"
+              class="rounded-xl bg-orange-600 text-white px-3 py-1 text-xs font-semibold hover:bg-orange-700 shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer">
+        <span>📱 В Дзен</span>
+      </button>
+    </div>
+  </div>
+
+  {# Token Usage & Cost Ledger for this Article #}
+  {% if usage_stats and usage_stats.total_tokens > 0 %}
+    <div class="rounded-xl border border-black/[0.08] bg-white p-3.5 shadow-2xs space-y-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-mac-ink">💎 Токены и себестоимость статьи</span>
+          <span class="mac-pill mac-pill-good text-[10px] font-mono font-semibold">
+            ~{{ usage_stats.cost_rub }} ₽ (${{ usage_stats.cost_usd }})
+          </span>
+        </div>
+        <div class="flex items-center gap-1.5 text-[11px] text-mac-secondary font-mono">
+          <span>{{ usage_stats.calls_count }} выз.</span>
+          <span>•</span>
+          <span>{{ usage_stats.avg_latency_ms }} мс</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Всего токенов</div>
+          <div class="font-mono font-bold text-mac-ink text-sm">
+            {{ "{:,}".format(usage_stats.total_tokens).replace(",", " ") }}
+          </div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Провайдер</div>
+          <div class="font-mono font-semibold text-mac-ink text-xs truncate" title="{{ usage_stats.providers | join(', ') }}">
+            {{ usage_stats.providers | join(', ') or 'Google Gemini' }}
+          </div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Модель</div>
+          <div class="font-mono font-semibold text-mac-ink text-xs truncate" title="{{ usage_stats.models | join(', ') }}">
+            {{ usage_stats.models | join(', ') or 'Default' }}
+          </div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Вход / Выход</div>
+          <div class="font-mono text-xs text-mac-secondary">
+            {{ "{:,}".format(usage_stats.prompt_tokens).replace(",", " ") }} / {{ "{:,}".format(usage_stats.completion_tokens).replace(",", " ") }}
+          </div>
+        </div>
+      </div>
+
+      {% if usage_stats.details %}
+        <details class="group pt-0.5">
+          <summary class="cursor-pointer text-[11px] font-medium text-mac-secondary hover:text-mac-ink flex items-center gap-1">
+            <span>Детализация вызовов ({{ usage_stats.details | length }})</span>
+            <span class="text-[9px] group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div class="mt-2 space-y-1">
+            {% for d in usage_stats.details %}
+              <div class="flex items-center justify-between text-[11px] rounded bg-[#FAFAFA] px-2 py-1 border border-black/[0.04] font-mono">
+                <span class="font-semibold text-mac-ink">{{ d.role }} ({{ d.model }})</span>
+                <span class="text-mac-secondary">{{ d.total_tokens }} ток. ({{ d.latency_ms }} мс) • ~{{ d.cost_rub }} ₽</span>
+              </div>
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# SEO & Wordstat Metadata Card (Rank Math Core) #}
+  <div class="rounded-xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2.5">
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs font-semibold text-mac-ink">SEO Оптимизация (Rank Math)</span>
+        <span class="mac-pill mac-pill-good text-[10px]">100% Score Ready</span>
+      </div>
+      <div class="text-[11px] text-mac-secondary font-mono">
+        Wordstat & LLM
+      </div>
+    </div>
+
+    {# Focus Keyword #}
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-[11px] font-semibold text-mac-secondary">Фокусный ключ (Focus Keyword):</span>
+      <span class="mac-pill mac-pill-blue font-mono font-semibold text-xs">
+        🔑 {{ focus_keyword or 'новости' }}
+      </span>
+    </div>
+
+    {# SEO Title & Description with length counters #}
+    <div class="grid grid-cols-1 gap-2 text-xs">
+      <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2.5 space-y-1">
+        <div class="flex items-center justify-between text-[11px] text-mac-secondary">
+          <span class="font-semibold text-mac-ink">SEO Title (до 60 знаков):</span>
+          <span class="font-mono {% if seo_title and seo_title|length > 60 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+            {{ seo_title|length if seo_title else title|length }}/60
+          </span>
+        </div>
+        <div class="text-mac-ink font-medium">{{ seo_title or title }}</div>
+      </div>
+
+      <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2.5 space-y-1">
+        <div class="flex items-center justify-between text-[11px] text-mac-secondary">
+          <span class="font-semibold text-mac-ink">SEO Description (до 160 знаков):</span>
+          <span class="font-mono {% if seo_description and seo_description|length > 160 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+            {{ seo_description|length if seo_description else 0 }}/160
+          </span>
+        </div>
+        <div class="text-mac-ink/90 leading-relaxed">{{ seo_description }}</div>
+      </div>
+    </div>
+
+    {# Wordstat Queries #}
+    {% if wordstat_queries %}
+      <div class="space-y-1.5 pt-1">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="font-semibold text-mac-secondary">Поисковые запросы Wordstat:</span>
+          {% if wordstat_source == 'yandex_api' %}
+            <span class="mac-pill mac-pill-good text-[10px] font-semibold">🟢 Яндекс.Вордстат API</span>
+          {% else %}
+            <span class="mac-pill mac-pill-info text-[10px] font-semibold">🔵 Семантический ИИ (Яндекс)</span>
+          {% endif %}
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          {% for wq in wordstat_queries %}
+            <span class="rounded-lg bg-[#FAFAFA] border border-black/[0.08] px-2 py-0.5 text-[11px] text-mac-ink font-medium flex items-center gap-1.5">
+              <span>{{ wq.query }}</span>
+              <span class="font-mono text-mac-secondary text-[10px]">{{ wq.count }} пок.</span>
+              {% if wq.intent %}
+                <span class="text-[9px] font-mono text-mac-secondary/80">({{ wq.intent }})</span>
+              {% endif %}
+            </span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {# Excalibur Lead Hook Evaluation #}
+    {% if lead_evaluation %}
+      <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.06] p-2.5 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between text-[11px]">
+          <span class="font-semibold text-mac-ink">🎯 Лид-хук (Excalibur News Standard)</span>
+          {% if lead_evaluation.is_optimal %}
+            <span class="mac-pill mac-pill-good text-[10px] font-semibold">✓ Оптимально ({{ lead_evaluation.length }} зн.)</span>
+          {% else %}
+            <span class="mac-pill mac-pill-warn text-[10px] font-semibold">{{ lead_evaluation.score }}/100 ({{ lead_evaluation.length }} зн.)</span>
+          {% endif %}
+        </div>
+        {% if lead_evaluation.suggestions %}
+          <div class="text-[11px] text-mac-secondary space-y-0.5">
+            {% for sug in lead_evaluation.suggestions %}
+              <div>• {{ sug }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {# Schema.org JSON-LD & llm.txt drawer #}
+    <div class="flex flex-wrap gap-3 pt-1 border-t border-black/[0.04]">
+      {% if schema_json_ld %}
+        <details class="group flex-1">
+          <summary class="cursor-pointer text-[11px] font-medium text-[#0071E3] hover:underline flex items-center gap-1">
+            <span>Микроразметка Schema.org (NewsArticle + FAQPage)</span>
+            <span class="text-[9px] text-mac-secondary group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <pre class="mt-2 rounded-lg bg-[#FAFAFA] border border-black/[0.06] p-2.5 font-mono text-[10px] text-mac-secondary overflow-x-auto max-h-48">{{ schema_json_ld | tojson(indent=2) }}</pre>
+        </details>
+      {% endif %}
+
+      {% if llm_txt %}
+        <details class="group flex-1">
+          <summary class="cursor-pointer text-[11px] font-medium text-[#0071E3] hover:underline flex items-center gap-1">
+            <span>Сводка llm.txt (SearchGPT, Perplexity)</span>
+            <span class="text-[9px] text-mac-secondary group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div class="mt-2 rounded-lg bg-[#FAFAFA] border border-black/[0.06] p-2.5 font-mono text-[11px] text-mac-secondary whitespace-pre-wrap max-h-48 overflow-y-auto">
+            {{ llm_txt }}
+          </div>
+        </details>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Mandatory Internal Linking Card (Внутренняя перелинковка) #}
+  <div class="rounded-xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-2.5">
+    <div class="flex items-center justify-between border-b border-black/[0.06] pb-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-mac-ink">Внутренняя перелинковка (архив статей)</span>
+        {% if internal_links %}
+          <span class="mac-pill mac-pill-good text-[10px] font-semibold">
+            ✓ Внедрено ссылок: {{ internal_links | length }}
+          </span>
+        {% else %}
+          <span class="mac-pill mac-pill-neutral text-[10px]">Тема новая для сайта</span>
+        {% endif %}
+      </div>
+      <span class="text-[11px] text-mac-secondary">Обязательно для SEO</span>
+    </div>
+
+    {% if internal_links %}
+      <div class="space-y-1.5">
+        {% for link in internal_links %}
+          <div class="flex items-center justify-between gap-2 rounded-lg bg-[#0071E3]/5 border border-[#0071E3]/15 px-3 py-1.5 text-xs min-w-0">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+              <span class="text-[#0071E3] font-bold shrink-0">🔗</span>
+              <span class="text-mac-ink font-semibold shrink-0">«{{ link.anchor }}»</span>
+              <span class="text-mac-secondary truncate">→ {{ link.article_title }}</span>
+            </div>
+            <a href="{{ link.url }}" target="_blank" rel="noopener" class="text-[#0071E3] font-mono text-[11px] hover:underline shrink-0 max-w-[140px] sm:max-w-[200px] truncate" title="{{ link.url }}">
+              {{ link.url }} ↗
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-xs text-mac-secondary">
+        Генератор сопоставляет тему статьи с архивом сайта (8 700+ публикаций). Для уникальных тем без прямых совпадений по ключам добавляется блок рекомендованного чтения.
+      </p>
+    {% endif %}
+  </div>
+
+  {# 🎯 AI Editorial Hypothesis & Closed-Loop Monetization Plan #}
+  {% if aevi %}
+    <div class="rounded-xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-mac-ink">🎯 Гипотеза ИИ и план монетизации (AEVI)</span>
+          <span class="mac-pill {% if aevi.level == 'viral' %}bg-gradient-to-r from-amber-500 to-rose-600 text-white font-bold shadow-xs{% elif aevi.level == 'high' %}bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-semibold{% else %}mac-pill-blue font-medium{% endif %} text-[10px]">
+            {{ aevi.badge_text }} · {{ aevi.total_score }}/100
+          </span>
+        </div>
+        <div class="text-[11px] text-mac-secondary font-mono">
+          Closed-Loop Verification
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Прогноз охвата</div>
+          <div class="font-mono font-bold text-mac-ink text-sm">~{{ aevi.predicted_views }}</div>
+          <div class="text-[10px] text-mac-secondary">визитов на статью</div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Время чтения</div>
+          <div class="font-mono font-bold text-mac-ink text-sm">~{{ aevi.predicted_reading_time_sec }} сек</div>
+          <div class="text-[10px] text-mac-secondary">на базе метрики рубрики</div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Ожидаемый CTR</div>
+          <div class="font-mono font-bold text-mac-ink text-sm">~{{ aevi.predicted_ctr_pct }}%</div>
+          <div class="text-[10px] text-mac-secondary">клик на баннеры/врезки</div>
+        </div>
+        <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+          <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Яндекс.Крипта</div>
+          <div class="font-mono font-bold text-mac-ink text-xs truncate" title="{{ aevi.target_audience }}">
+            {{ aevi.target_audience }}
+          </div>
+          <div class="text-[10px] text-mac-secondary">целевой портрет ЦА</div>
+        </div>
+      </div>
+
+      {# 4-Vector Breakdown Pills #}
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 pt-1 text-[10.5px] font-mono">
+        <div class="flex items-center justify-between rounded-lg bg-black/[0.02] px-2 py-1 min-w-0">
+          <span class="text-mac-secondary truncate mr-1">Спрос:</span>
+          <span class="font-bold text-mac-ink shrink-0">{{ aevi.search_demand_score }}/30</span>
+        </div>
+        <div class="flex items-center justify-between rounded-lg bg-black/[0.02] px-2 py-1 min-w-0">
+          <span class="text-mac-secondary truncate mr-1">Удержание:</span>
+          <span class="font-bold text-mac-ink shrink-0">{{ aevi.historical_engagement_score }}/30</span>
+        </div>
+        <div class="flex items-center justify-between rounded-lg bg-black/[0.02] px-2 py-1 min-w-0">
+          <span class="text-mac-secondary truncate mr-1">Крипта ЦА:</span>
+          <span class="font-bold text-mac-ink shrink-0">{{ aevi.crypta_affinity_score }}/25</span>
+        </div>
+        <div class="flex items-center justify-between rounded-lg bg-black/[0.02] px-2 py-1 min-w-0">
+          <span class="text-mac-secondary truncate mr-1">Фактура:</span>
+          <span class="font-bold text-mac-ink shrink-0">{{ aevi.fact_richness_score }}/15</span>
+        </div>
+      </div>
+
+      {# Closed-loop verification status pill #}
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 flex items-start gap-2">
+        <div class="text-sm shrink-0">🔄</div>
+        <div class="space-y-0.5 leading-relaxed">
+          <div class="font-semibold text-emerald-950">Замкнутый контур сверки с Яндекс Метрикой (Closed-Loop Feedback)</div>
+          <div class="text-[11px] text-emerald-800/90">
+            Гипотеза зарегистрирована в реестре. После публикации реальное время чтения, глубина скролла и CTR с рекламных блоков сопоставляются с планом. При превосходстве факта паттерн автоматически закрепляется как эталонный.
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {# 🚀 Native Campaign Quality Index (CQI) & Client Closed-Loop #}
+  {% if cqi or promoted_brand_name %}
+    <div class="rounded-xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-mac-ink">🚀 Индекс качества кампании (CQI)</span>
+          {% if cqi %}
+            <span class="mac-pill {{ cqi.badge_color }} text-[10px] font-bold">
+              {{ cqi.badge_label }} · {{ cqi.cqi_score }} / 100
+            </span>
+          {% endif %}
+        </div>
+        <div class="text-[11px] text-mac-secondary font-mono">
+          Closed-Loop Client Feedback
+        </div>
+      </div>
+
+      {% if promoted_brand_name %}
+        <div class="rounded-xl bg-[#0071E3]/5 border border-[#0071E3]/15 p-3 space-y-1.5 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 font-semibold text-[#0071E3]">
+              <span>🎯 Нативная интеграция бренда:</span>
+              <span class="text-mac-ink font-bold">{{ promoted_brand_name }}</span>
+            </div>
+            {% if is_brand_safe %}
+              <span class="mac-pill mac-pill-good text-[10px]">🛡️ 100% Brand Safe</span>
+            {% else %}
+              <span class="mac-pill mac-pill-danger text-[10px]">🛡️ Brand Safety Alert</span>
+            {% endif %}
+          </div>
+          {% if tracked_url %}
+            <div class="flex items-center gap-2 text-[11px] text-mac-secondary pt-0.5">
+              <span class="font-medium text-mac-ink">Размеченная ссылка с UTM:</span>
+              <a href="{{ tracked_url }}" target="_blank" rel="noopener" class="font-mono text-[#0071E3] hover:underline truncate">
+                {{ tracked_url }} ↗
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if cqi %}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Глубина чтения</div>
+            <div class="font-mono font-bold text-mac-ink text-sm">{{ cqi.media_reading_score }} / 100</div>
+            <div class="text-[10px] text-mac-secondary">удержание в медиа</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Фактор отказов</div>
+            <div class="font-mono font-bold text-mac-ink text-sm">{{ cqi.media_bounce_score }} / 100</div>
+            <div class="text-[10px] text-mac-secondary">защита от оттока</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Кликабельность</div>
+            <div class="font-mono font-bold text-mac-ink text-sm">{{ cqi.link_ctr_score }} / 100</div>
+            <div class="text-[10px] text-mac-secondary">нативный CTR ссылки</div>
+          </div>
+          <div class="rounded-lg bg-[#FAFAFA] border border-black/[0.04] p-2 space-y-0.5">
+            <div class="text-[10px] text-mac-secondary uppercase tracking-wider font-semibold">Цели клиента</div>
+            <div class="font-mono font-bold text-mac-ink text-sm">{{ cqi.target_conversion_score }} / 100</div>
+            <div class="text-[10px] text-mac-secondary">конверсии на сайте заказчика</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-black/[0.04] bg-[#FAFAFA] p-2.5 text-xs text-mac-secondary space-y-1">
+          <div class="flex items-center gap-1.5 font-semibold text-mac-ink">
+            <span>📋 Резюме эффективности:</span>
+            <span>{{ cqi.verdict }}</span>
+          </div>
+          <div class="text-[11px] text-mac-secondary">
+            Формула CQI непрерывно сверяет чтение на SvodkaPress с целевыми действиями в Метрике рекламодателя (заявки, корзины, регистрации) через UTM-метку кампании.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# 📱 Multichannel 4-Tab Split-View Live Preview #}
+  <div class="rounded-xl border border-black/[0.08] bg-white p-4 shadow-2xs space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-3">
+      <div>
+        <div class="text-xs font-semibold text-mac-ink">Мультиканальный предпросмотр (4 площадки)</div>
+        <div class="text-[11px] text-mac-secondary">Реальный вид публикации с учетом отдельной рекламы и нативной разметки</div>
+      </div>
+
+      {# Interactive Tabs Navigation #}
+      <div class="flex items-center gap-1 bg-black/[0.04] p-1 rounded-xl text-xs">
+        <button type="button"
+                id="tab-btn-wp"
+                onclick="switchMultichannelTab('wp')"
+                class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white text-mac-ink shadow-xs border border-black/[0.08] transition-all flex items-center gap-1.5 cursor-pointer">
+          <span>🌐 Сайт WP</span>
+        </button>
+        <button type="button"
+                id="tab-btn-dzen"
+                onclick="switchMultichannelTab('dzen')"
+                class="px-3 py-1.5 rounded-xl text-xs font-medium text-mac-secondary hover:text-mac-ink transition-all flex items-center gap-1.5 cursor-pointer">
+          <span>📱 Яндекс Дзен</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </button>
+        <button type="button"
+                id="tab-btn-tg"
+                onclick="switchMultichannelTab('tg')"
+                class="px-3 py-1.5 rounded-xl text-xs font-medium text-mac-secondary hover:text-mac-ink transition-all flex items-center gap-1.5 cursor-pointer">
+          <span>💬 Telegram</span>
+        </button>
+        <button type="button"
+                id="tab-btn-vk"
+                onclick="switchMultichannelTab('vk')"
+                class="px-3 py-1.5 rounded-xl text-xs font-medium text-mac-secondary hover:text-mac-ink transition-all flex items-center gap-1.5 cursor-pointer">
+          <span>👥 ВКонтакте</span>
+        </button>
+      </div>
+    </div>
+
+    {# TAB 1: WordPress (Canonical + Ads) #}
+    <div id="tab-pane-wp" class="space-y-4">
+      <div class="flex items-center justify-between text-[11px] text-mac-secondary border-b border-black/[0.04] pb-2">
+        <span class="font-medium">Канонический вид на svodka.press с рекламными блоками РСЯ</span>
+        <span class="text-[#0071E3]">Внутренние ссылки подсвечены синим</span>
+      </div>
+
+      {# Leaderboard 728x90 Ad Banner Mockup #}
+      <div class="rounded-xl border border-dashed border-amber-300 bg-amber-50/70 p-3 text-center space-y-1">
+        <div class="flex items-center justify-center gap-1.5 font-semibold text-xs text-amber-900">
+          <span>📢 Рекламный блок РСЯ #1 (Top Billboard 728×90 / моб. 320×100)</span>
+          <span class="mac-pill mac-pill-warn text-[9px]">Только сайт</span>
+        </div>
+        <div class="text-[10px] text-amber-800/80">
+          Отображается в шапке статьи на сайте svodka.press. В Дзен и Telegram этот блок НЕ попадает.
+        </div>
+      </div>
+
+      {# Article Body Content with In-Article Ad Inset #}
+      <div class="article-typography max-w-none">
+        {{ content_html | safe }}
+      </div>
+
+      {# In-Article 300x250 Ad Banner Mockup #}
+      <div class="rounded-xl border border-dashed border-amber-300 bg-amber-50/70 p-3 text-center space-y-1">
+        <div class="flex items-center justify-center gap-1.5 font-semibold text-xs text-amber-900">
+          <span>📢 Рекламный блок РСЯ #2 (In-Article 300×250 / 336×280)</span>
+          <span class="mac-pill mac-pill-warn text-[9px]">Только сайт</span>
+        </div>
+        <div class="text-[10px] text-amber-800/80">
+          Встраивается после 3-го абзаца на сайте издания для монетизации дочитываний.
+        </div>
+      </div>
+    </div>
+
+    {# TAB 2: Яндекс Дзен (Studio + Isolated Native Promo) #}
+    <div id="tab-pane-dzen" class="hidden space-y-4">
+      {# Dzen isolation notice #}
+      <div class="rounded-xl border border-blue-200 bg-blue-50/80 p-3.5 text-xs text-blue-900 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="font-semibold flex items-center gap-1.5 text-blue-900">
+            <span>⚡ Раздельная монетизация Яндекс Дзен</span>
+            <span class="mac-pill mac-pill-good text-[10px]">Изолированная реклама</span>
+          </div>
+          <button type="button"
+                  hx-post="/api/ui/lab/cluster/{{ cluster_id }}/publish-dzen"
+                  hx-target="#step-publish-dzen-container"
+                  hx-swap="innerHTML"
+                  hx-indicator="#step-dzen-spinner"
+                  class="rounded-xl bg-orange-600 text-white px-3 py-1 text-xs font-semibold hover:bg-orange-700 shadow-2xs transition-colors inline-flex items-center gap-1 cursor-pointer">
+            <span>📱 Опубликовать в Дзен</span>
+          </button>
+        </div>
+        <p class="text-[11px] text-blue-800/90 leading-relaxed">
+          Этот нативный промо-блок/баннер интегрирован <strong>исключительно в версию для Яндекс Дзена</strong> (после 2-го абзаца). На основном сайте <code class="font-mono text-blue-900">svodka.press</code> этой рекламы нет!
+        </p>
+      </div>
+
+      {# Dzen rendered HTML container #}
+      <div class="rounded-xl border border-black/[0.08] bg-[#FAFAFA] p-4 space-y-3">
+        <div class="flex items-center justify-between text-[11px] text-mac-secondary border-b border-black/[0.04] pb-2">
+          <span class="font-medium">Предпросмотр статьи в Студии Дзена (чистый HTML)</span>
+          <span class="font-mono text-[10px]">Канонический первоисточник: svodka.press</span>
+        </div>
+        <div class="article-typography max-w-none">
+          {% if dzen_preview_html %}
+            {{ dzen_preview_html | safe }}
+          {% else %}
+            {{ content_html | safe }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# TAB 3: Telegram (Channel UI Card + CTA Button) #}
+    <div id="tab-pane-tg" class="hidden py-2">
+      <div class="max-w-md mx-auto rounded-2xl bg-[#F0F2F5] border border-black/[0.08] p-4 shadow-sm space-y-3">
+        <div class="flex items-center gap-2.5 pb-2 border-b border-black/[0.06]">
+          <div class="w-8 h-8 rounded-full bg-[#0088cc] flex items-center justify-center text-white font-bold text-xs shadow-2xs">
+            СП
+          </div>
+          <div>
+            <div class="flex items-center gap-1 text-xs font-semibold text-mac-ink">
+              <span>Сводка Пресс | Новости</span>
+              <span class="text-[#0088cc] text-[11px]" title="Официальный канал">✓</span>
+            </div>
+            <div class="text-[10px] text-mac-secondary font-mono">1.2K подписчиков · только что</div>
+          </div>
+        </div>
+
+        {% if cover_url %}
+          <div class="rounded-xl overflow-hidden border border-black/[0.08] max-h-56 bg-black/[0.02]">
+            <img src="{{ cover_url }}" class="w-full h-auto object-cover max-h-56" alt="Telegram Cover">
+          </div>
+        {% endif %}
+
+        <div class="text-xs text-mac-ink leading-relaxed whitespace-pre-wrap font-sans">
+          {{ tg_caption or (title ~ "\n\n" ~ seo_description) }}
+        </div>
+
+        {% if tg_hashtags %}
+          <div class="text-xs text-[#0088cc] font-medium">
+            {% for ht in tg_hashtags %}
+              <span>#{{ ht.replace(" ", "_") }} </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="pt-1">
+          <a href="#" onclick="return false;"
+             class="w-full py-2.5 px-3 rounded-xl bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] text-center text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-[#0088cc]/25 shadow-2xs">
+            <span>📖 Читать полностью на сайте</span>
+            <span>→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {# TAB 4: ВКонтакте (Wall Post Card + Snippet) #}
+    <div id="tab-pane-vk" class="hidden py-2">
+      <div class="max-w-md mx-auto rounded-2xl bg-white border border-black/[0.08] p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-[#0077FF] flex items-center justify-center text-white font-bold text-xs shadow-2xs">
+              СП
+            </div>
+            <div>
+              <div class="flex items-center gap-1 text-xs font-semibold text-mac-ink">
+                <span>Сводка Пресс</span>
+                <span class="text-[#0077FF] text-[10px]" title="Верифицированное сообщество">✓</span>
+              </div>
+              <div class="text-[10px] text-mac-secondary">сегодня в 14:30</div>
+            </div>
+          </div>
+          <span class="text-mac-secondary text-xs">•••</span>
+        </div>
+
+        <div class="text-xs text-mac-ink leading-relaxed whitespace-pre-wrap">
+          {{ vk_wall_message or (title ~ "\n\n" ~ seo_description) }}
+        </div>
+
+        {# VK Link Snippet Attachment #}
+        <div class="rounded-xl border border-black/[0.08] bg-[#F7F8FA] overflow-hidden">
+          {% if cover_url %}
+            <img src="{{ cover_url }}" class="w-full h-36 object-cover" alt="VK Snippet Image">
+          {% endif %}
+          <div class="p-3 space-y-1">
+            <div class="text-[10px] uppercase font-semibold text-mac-secondary tracking-wider">SVODKA.PRESS</div>
+            <div class="text-xs font-semibold text-mac-ink leading-snug line-clamp-2">{{ title }}</div>
+            <div class="text-[11px] text-mac-secondary line-clamp-1">{{ seo_description }}</div>
+          </div>
+        </div>
+
+        {# VK Reactions footer #}
+        <div class="flex items-center justify-between pt-2 border-t border-black/[0.06] text-mac-secondary text-[11px]">
+          <div class="flex items-center gap-4">
+            <span class="flex items-center gap-1 hover:text-red-500 cursor-pointer">❤️ 42</span>
+            <span class="flex items-center gap-1 hover:text-blue-500 cursor-pointer">💬 6</span>
+            <span class="flex items-center gap-1 hover:text-green-500 cursor-pointer">↗️ 15</span>
+          </div>
+          <div class="flex items-center gap-1 text-[10px] font-mono">
+            <span>👁️ 1.8K</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function switchMultichannelTab(tabId) {
+        var tabs = ['wp', 'dzen', 'tg', 'vk'];
+        tabs.forEach(function(t) {
+          var pane = document.getElementById('tab-pane-' + t);
+          var btn = document.getElementById('tab-btn-' + t);
+          if (pane) {
+            if (t === tabId) {
+              pane.classList.remove('hidden');
+            } else {
+              pane.classList.add('hidden');
+            }
+          }
+          if (btn) {
+            if (t === tabId) {
+              btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold bg-white text-mac-ink shadow-xs border border-black/[0.08] transition-all flex items-center gap-1.5 cursor-pointer';
+            } else {
+              btn.className = 'px-3 py-1.5 rounded-xl text-xs font-medium text-mac-secondary hover:text-mac-ink transition-all flex items-center gap-1.5 cursor-pointer';
+            }
+          }
+        });
+      }
+    </script>
+  </div>
+</div>

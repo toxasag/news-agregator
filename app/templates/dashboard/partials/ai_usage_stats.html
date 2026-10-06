@@ -1,0 +1,263 @@
+{#
+  Apple macOS HIG: AI Token Usage Ledger & Provider Stability Bento Box
+#}
+<section class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-5">
+  
+  {# Header with Period Switcher #}
+  <div class="border-b border-black/[0.06] pb-3.5 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-semibold text-mac-ink">Бухгалтерия токенов и стабильность провайдеров</h3>
+        <span class="mac-pill mac-pill-blue text-[10px]">
+          Uptime {{ usage_report.summary.overall_uptime_pct }}%
+        </span>
+      </div>
+      <p class="text-xs text-mac-secondary mt-0.5">
+        Сквозной учет расхода токенов, себестоимости и отклика (Latency) по каждому провайдеру и модели.
+      </p>
+    </div>
+
+    {# Days switcher #}
+    <div class="flex items-center rounded-xl bg-[#FAFAFA] border border-black/[0.06] p-1 gap-1 text-xs font-semibold">
+      <button hx-get="/api/ui/ai/usage-stats?days=1"
+              hx-target="#ai-usage-stats-container"
+              hx-swap="innerHTML"
+              class="px-2.5 py-1 rounded-lg transition-colors {% if selected_days == 1 %}bg-white text-mac-ink shadow-2xs font-bold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        Сегодня (24ч)
+      </button>
+      <button hx-get="/api/ui/ai/usage-stats?days=7"
+              hx-target="#ai-usage-stats-container"
+              hx-swap="innerHTML"
+              class="px-2.5 py-1 rounded-lg transition-colors {% if selected_days == 7 or not selected_days %}bg-white text-mac-ink shadow-2xs font-bold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        7 дней
+      </button>
+      <button hx-get="/api/ui/ai/usage-stats?days=30"
+              hx-target="#ai-usage-stats-container"
+              hx-swap="innerHTML"
+              class="px-2.5 py-1 rounded-lg transition-colors {% if selected_days == 30 %}bg-white text-mac-ink shadow-2xs font-bold{% else %}text-mac-secondary hover:text-mac-ink{% endif %}">
+        30 дней
+      </button>
+    </div>
+  </div>
+
+  {# 4 KPI Bento Cards #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+    {# 1. Period Tokens & Cost #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">
+        Расход токенов ({% if selected_days == 1 %}24ч{% else %}{{ selected_days or 7 }} дн.{% endif %})
+      </div>
+      <div class="text-xl font-bold text-mac-ink font-mono">
+        {{ "{:,}".format(usage_report.summary.period_tokens).replace(",", " ") }}
+      </div>
+      <div class="flex items-center justify-between text-xs text-mac-secondary pt-0.5 font-medium">
+        <span>Себестоимость:</span>
+        <span class="text-emerald-600 font-semibold font-mono">
+          ~{{ usage_report.summary.period_cost_rub }} ₽ (${{ usage_report.summary.period_cost_usd }})
+        </span>
+      </div>
+    </div>
+
+    {# 2. Today Spend #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">
+        Сегодня с 00:00 MSK
+      </div>
+      <div class="text-xl font-bold text-mac-ink font-mono">
+        {{ "{:,}".format(usage_report.summary.today_tokens).replace(",", " ") }}
+      </div>
+      <div class="flex items-center justify-between text-xs text-mac-secondary pt-0.5 font-medium">
+        <span>Расход / Запросы:</span>
+        <span class="text-mac-ink font-semibold font-mono">
+          ~{{ usage_report.summary.today_cost_rub }} ₽ / {{ usage_report.summary.today_calls }} вызовов
+        </span>
+      </div>
+    </div>
+
+    {# 3. Stability & Uptime #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">
+        Индекс стабильности
+      </div>
+      <div class="text-xl font-bold {% if usage_report.summary.overall_uptime_pct >= 98 %}text-emerald-600{% elif usage_report.summary.overall_uptime_pct >= 90 %}text-amber-600{% else %}text-rose-600{% endif %} font-mono">
+        {{ usage_report.summary.overall_uptime_pct }}%
+      </div>
+      <div class="flex items-center justify-between text-xs text-mac-secondary pt-0.5 font-medium">
+        <span>Успешно / Всего:</span>
+        <span class="text-mac-ink font-semibold font-mono">
+          {{ usage_report.summary.period_calls }} запросов
+        </span>
+      </div>
+    </div>
+
+    {# 4. Latency & All Time #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-1">
+      <div class="text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">
+        Средний отклик (Latency)
+      </div>
+      <div class="text-xl font-bold text-mac-ink font-mono">
+        {{ usage_report.summary.avg_latency_ms }} <span class="text-xs font-normal text-mac-secondary">мс</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-mac-secondary pt-0.5 font-medium">
+        <span>Всего за все время:</span>
+        <span class="text-mac-ink font-semibold font-mono">
+          ~{{ usage_report.summary.all_time_cost_rub }} ₽
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# Providers Stability & Spend Breakdown Table #}
+  <div class="space-y-2">
+    <div class="flex items-center justify-between">
+      <h4 class="text-xs font-bold text-mac-ink uppercase tracking-wider">
+        Разрез по провайдерам ({{ usage_report.providers | length }})
+      </h4>
+      <span class="text-[11px] text-mac-secondary">
+        Сортировка по объему обращений
+      </span>
+    </div>
+
+    {% if usage_report.providers %}
+      <div class="overflow-x-auto rounded-xl border border-black/[0.08]">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-[#FAFAFA] border-b border-black/[0.08] text-mac-secondary font-semibold text-[11px]">
+              <th class="py-2.5 px-3">Провайдер</th>
+              <th class="py-2.5 px-3">Стабильность</th>
+              <th class="py-2.5 px-3">Отклик</th>
+              <th class="py-2.5 px-3">Запросы (Усп/Сбой)</th>
+              <th class="py-2.5 px-3">Токены (Вход / Выход)</th>
+              <th class="py-2.5 px-3">Всего токенов</th>
+              <th class="py-2.5 px-3">Себестоимость</th>
+              <th class="py-2.5 px-3 text-right">Посл. активность</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-black/[0.04]">
+            {% for prov in usage_report.providers %}
+              <tr class="hover:bg-black/[0.01] transition-colors">
+                <td class="py-2.5 px-3 font-semibold text-mac-ink font-mono">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full {% if prov.uptime_pct >= 98 %}bg-emerald-500{% elif prov.uptime_pct >= 90 %}bg-amber-500{% else %}bg-rose-500{% endif %}"></span>
+                    <span>{{ prov.provider_name }}</span>
+                    <span class="text-[10px] text-mac-secondary font-normal font-sans">({{ prov.models_count }} мод.)</span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-3 font-mono">
+                  {% if prov.uptime_pct >= 98 %}
+                    <span class="mac-pill mac-pill-good text-[10px]">{{ prov.uptime_pct }}%</span>
+                  {% elif prov.uptime_pct >= 90 %}
+                    <span class="mac-pill mac-pill-warn text-[10px]">{{ prov.uptime_pct }}%</span>
+                  {% else %}
+                    <span class="mac-pill mac-pill-danger text-[10px]">{{ prov.uptime_pct }}%</span>
+                  {% endif %}
+                </td>
+                <td class="py-2.5 px-3 font-mono text-mac-ink">
+                  {{ prov.avg_latency_ms }} мс
+                </td>
+                <td class="py-2.5 px-3 font-mono text-xs">
+                  <span class="text-emerald-700 font-semibold">{{ prov.success_calls }}</span> /
+                  <span class="{% if prov.failed_calls > 0 %}text-rose-600 font-semibold{% else %}text-mac-secondary{% endif %}">{{ prov.failed_calls }}</span>
+                </td>
+                <td class="py-2.5 px-3 font-mono text-[11px] text-mac-secondary">
+                  {{ "{:,}".format(prov.prompt_tokens).replace(",", " ") }} / {{ "{:,}".format(prov.completion_tokens).replace(",", " ") }}
+                </td>
+                <td class="py-2.5 px-3 font-mono font-bold text-mac-ink">
+                  {{ "{:,}".format(prov.total_tokens).replace(",", " ") }}
+                </td>
+                <td class="py-2.5 px-3 font-mono">
+                  <span class="text-emerald-700 font-semibold">~{{ prov.cost_rub }} ₽</span>
+                  <span class="text-[10px] text-mac-secondary">(${{ prov.cost_usd }})</span>
+                </td>
+                <td class="py-2.5 px-3 text-right font-mono text-[11px] text-mac-secondary">
+                  {{ prov.last_call_at }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 text-center text-xs text-mac-secondary">
+        За выбранный период вызовов ИИ не зафиксировано. Статистика начнет накапливаться автоматически при генерации статей и проверке рубрик.
+      </div>
+    {% endif %}
+  </div>
+
+  {# Top Models Breakdown #}
+  {% if usage_report.models %}
+    <details class="group rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 text-xs">
+      <summary class="cursor-pointer font-semibold text-mac-ink hover:text-[#0071E3] flex items-center justify-between">
+        <span>🏆 Топ моделей по расходу и надежности ({{ usage_report.models | length }})</span>
+        <span class="text-[10px] text-mac-secondary group-open:rotate-180 transition-transform">▼</span>
+      </summary>
+
+      <div class="mt-3 overflow-x-auto rounded-lg border border-black/[0.06] bg-white">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-[#FAFAFA] border-b border-black/[0.06] text-mac-secondary font-semibold text-[11px]">
+              <th class="py-2 px-3">Модель</th>
+              <th class="py-2 px-3">Провайдер</th>
+              <th class="py-2 px-3">Запросов</th>
+              <th class="py-2 px-3">Стабильность</th>
+              <th class="py-2 px-3">Отклик</th>
+              <th class="py-2 px-3">Токены</th>
+              <th class="py-2 px-3 text-right">Себестоимость</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-black/[0.04]">
+            {% for m in usage_report.models %}
+              <tr class="hover:bg-black/[0.01]">
+                <td class="py-2 px-3 font-mono font-semibold text-mac-ink">{{ m.model }}</td>
+                <td class="py-2 px-3 text-mac-secondary font-mono">{{ m.provider_name }}</td>
+                <td class="py-2 px-3 font-mono">{{ m.calls }}</td>
+                <td class="py-2 px-3 font-mono">
+                  <span class="mac-pill {% if m.uptime_pct >= 98 %}mac-pill-good{% elif m.uptime_pct >= 90 %}mac-pill-warn{% else %}mac-pill-danger{% endif %} text-[10px]">
+                    {{ m.uptime_pct }}%
+                  </span>
+                </td>
+                <td class="py-2 px-3 font-mono text-mac-secondary">{{ m.avg_latency_ms }} мс</td>
+                <td class="py-2 px-3 font-mono font-semibold">{{ "{:,}".format(m.tokens).replace(",", " ") }}</td>
+                <td class="py-2 px-3 text-right font-mono font-semibold text-emerald-700">~{{ m.cost_rub }} ₽</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% endif %}
+
+  {# Daily Trends Chart Bar #}
+  {% if usage_report.daily_trends %}
+    {% set max_tokens = 1 %}
+    {% for d in usage_report.daily_trends %}
+      {% if d.tokens > max_tokens %}
+        {% set max_tokens = d.tokens %}
+      {% endif %}
+    {% endfor %}
+
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+      <div class="flex items-center justify-between text-xs font-semibold text-mac-secondary">
+        <span class="uppercase tracking-wider text-[11px]">Динамика расхода токенов по дням</span>
+        <span class="font-mono text-[11px]">Пик: {{ "{:,}".format(max_tokens).replace(",", " ") }} токенов/день</span>
+      </div>
+
+      <div class="grid grid-cols-7 gap-2 pt-2 items-end h-28">
+        {% for d in usage_report.daily_trends %}
+          {% set pct = (d.tokens / max_tokens * 100) | round if max_tokens > 0 else 0 %}
+          <div class="flex flex-col items-center gap-1.5 h-full justify-end">
+            <div class="text-[9px] font-mono text-mac-secondary">
+              {% if d.tokens > 0 %}{{ "{:,}".format(d.tokens).replace(",", " ") }}{% else %}0{% endif %}
+            </div>
+            <div class="w-full rounded-md bg-[#0071E3]/20 hover:bg-[#0071E3]/30 transition-all relative overflow-hidden"
+                 style="height: {{ [pct, 6] | max }}%;">
+              <div class="absolute inset-0 bg-[#0071E3] rounded-md opacity-80"></div>
+            </div>
+            <div class="text-[10px] font-semibold text-mac-secondary font-mono">{{ d.label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+</section>

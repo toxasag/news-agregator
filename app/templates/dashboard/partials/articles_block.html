@@ -1,0 +1,208 @@
+{#
+  The table plus its pager. Both the full page and the HTMX filter/pager requests
+  include this one partial, so the two paths cannot drift apart.
+#}
+<div class="card overflow-hidden shadow-sm">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-left text-[13px]">
+      <thead class="bg-[#FAFAFA] border-b border-black/[0.06] text-[11px] font-semibold uppercase tracking-wider text-mac-secondary">
+        <tr>
+          <th class="w-16 px-2.5 py-3 font-semibold">Обложка</th>
+          <th class="min-w-[200px] max-w-sm px-3 py-3 font-semibold">Инфоповод и заголовок</th>
+          <th class="px-2.5 py-3 font-semibold whitespace-nowrap">Рубрика</th>
+          <th class="px-2.5 py-3 font-semibold whitespace-nowrap">Дата</th>
+          <th class="px-2.5 py-3 font-semibold whitespace-nowrap">Готовность</th>
+          <th class="px-2.5 py-3 font-semibold">Дистрибуция (ссылки)</th>
+          <th class="px-3 py-3 text-right font-semibold whitespace-nowrap sticky right-0 bg-[#FAFAFA] shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]">Действие</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-black/[0.04]">
+        {% for row in article_rows %}
+          <tr class="cursor-pointer hover:bg-black/[0.02] transition-colors group"
+              hx-get="/api/ui/articles/{{ row.id }}/preview"
+              hx-target="#article-modal"
+              hx-swap="innerHTML">
+            {# 1. Обложка #}
+            <td class="w-16 px-2.5 py-2.5">
+              <img src="/api/ui/articles/{{ row.id }}/thumbnail" alt=""
+                   width="64" height="44" loading="lazy"
+                   class="h-10 w-14 rounded-lg border border-black/[0.06] object-cover shadow-2xs bg-black/[0.03]">
+            </td>
+
+            {# 2. Инфоповод и заголовок #}
+            <td class="min-w-[200px] max-w-sm px-3 py-2.5">
+              <div class="font-semibold text-mac-ink group-hover:text-mac-blue transition-colors line-clamp-2 leading-snug">
+                {{ row.title }}
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <button type="button"
+                        hx-get="/api/ui/articles/{{ row.id }}/journal"
+                        hx-target="#article-modal"
+                        hx-swap="innerHTML"
+                        onclick="event.stopPropagation()"
+                        class="text-[11px] font-medium text-mac-blue hover:underline">
+                  Журнал прогона
+                </button>
+                {% if row.estimated_publish_time %}
+                  <span class="text-[11px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200">
+                    ⏱ {{ row.estimated_publish_time }}
+                  </span>
+                {% endif %}
+                {% if row.error_message %}
+                  <span class="text-[11px] text-mac-rose truncate max-w-xs"
+                        title="{{ row.error_message }}">
+                    · {{ row.error_message }}
+                  </span>
+                {% endif %}
+              </div>
+            </td>
+
+            {# 3. Рубрика + Реклама (если есть) #}
+            <td class="px-2.5 py-2.5 whitespace-nowrap">
+              <span class="chip chip-outline text-[11px] font-medium">
+                {{ row.category_title }}
+              </span>
+              {% if row.ad_name %}
+                <div class="mt-1">
+                  <span class="inline-flex items-center gap-1 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 border border-purple-200" title="{{ row.ad_name }}">
+                    🏷 {{ row.ad_name[:16] }}
+                  </span>
+                </div>
+              {% endif %}
+            </td>
+
+            {# 4. Дата #}
+            <td class="mono whitespace-nowrap px-2.5 py-2.5 text-[11px] text-mac-secondary">
+              {{ row.created_at }}
+            </td>
+
+            {# 5. Готовность #}
+            <td class="px-2.5 py-2.5 whitespace-nowrap">
+              {% if row.status == 'media_ready' %}
+                <span class="mac-pill mac-pill-good text-[11px]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-mac-emerald animate-pulse"></span>
+                  Готов к публикации
+                </span>
+              {% elif row.status == 'wp_published' or row.status == 'distributed' %}
+                <span class="mac-pill mac-pill-blue text-[11px]">
+                  Опубликован
+                </span>
+              {% elif row.status == 'failed' %}
+                <span class="mac-pill mac-pill-bad text-[11px]">
+                  Сбой
+                </span>
+              {% else %}
+                <span class="mac-pill mac-pill-neutral text-[11px]">
+                  {{ row.status }}
+                </span>
+              {% endif %}
+            </td>
+
+            {# 6. Дистрибуция (ссылки) #}
+            <td class="px-2.5 py-2.5">
+              <div class="flex flex-wrap items-center gap-1 max-w-[240px]">
+                {% for p in row.distribution_items %}
+                  {% if p.is_primary %}
+                    {% if p.state == 'published' and p.url %}
+                      <a href="{{ p.url }}" target="_blank" onclick="event.stopPropagation()"
+                         class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-transform hover:scale-105 bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 shadow-2xs"
+                         title="{{ p.reason }}: {{ p.url }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>{{ p.label }}</span>
+                        <span class="text-[9px]">↗</span>
+                      </a>
+                    {% elif p.state == 'published' %}
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300"
+                            title="{{ p.reason }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>{{ p.label }}</span>
+                        <span class="text-[9px]">✓</span>
+                      </span>
+                    {% elif p.state == 'queued' %}
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                            title="{{ p.reason }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>{{ p.label }}</span>
+                        <span class="text-[9px]">⏳</span>
+                      </span>
+                    {% elif p.state == 'failed' %}
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium bg-rose-50 text-rose-700 border border-rose-300 cursor-help"
+                            title="{{ p.reason }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        <span>{{ p.label }}</span>
+                        <span class="text-[9px]">⚠️</span>
+                      </span>
+                    {% else %}
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-normal bg-black/[0.03] text-mac-secondary/60 border border-black/[0.05]"
+                            title="{{ p.reason }}">
+                        <span class="w-1 h-1 rounded-full bg-black/20"></span>
+                        <span>{{ p.label }}</span>
+                      </span>
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </td>
+
+            {# 7. Действие (sticky right-0) #}
+            <td class="px-2.5 py-2.5 text-right whitespace-nowrap sticky right-0 bg-white/95 group-hover:bg-[#F9F9FA] transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]">
+              <div class="flex items-center justify-end gap-1.5" onclick="event.stopPropagation()">
+                {% if row.has_unresolved_socials %}
+                  <button type="button"
+                          hx-post="/api/ui/articles/{{ row.id }}/republish-social"
+                          hx-target="#trigger-result"
+                          hx-swap="innerHTML"
+                          hx-disabled-elt="this"
+                          hx-indicator="#spin-repub-{{ row.id }}"
+                          title="Повторить отправку в соцсети (допостить)"
+                          class="rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-semibold py-1 px-2 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer">
+                    <span id="spin-repub-{{ row.id }}" class="htmx-indicator animate-spin mr-0.5 inline-block text-[11px] leading-none">↻</span>
+                    <span>Допостить</span>
+                  </button>
+                {% endif %}
+                <button type="button"
+                        hx-get="/api/ui/articles/{{ row.id }}/preview"
+                        hx-target="#article-modal"
+                        hx-swap="innerHTML"
+                        class="btn btn-outline text-[11.5px] py-1 px-2.5 opacity-90 group-hover:opacity-100">
+                  Инспектор
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="px-4 py-12 text-center text-sm text-mac-secondary">
+              <p class="font-medium text-mac-ink">Материалов нет.</p>
+              <p class="text-xs text-mac-muted mt-1">Либо конвейер ещё не отработал, либо фильтр слишком узкий.</p>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Pager #}
+{% if total_pages > 1 %}
+  <nav class="mt-4 flex items-center justify-between text-[13px] text-mac-secondary"
+       aria-label="Страницы">
+    <form hx-get="/api/ui/articles/table" hx-target="#articles-block"
+          hx-swap="innerHTML">
+      <input type="hidden" name="page" value="{{ [page - 1, 1] | max }}">
+      <button type="submit" {% if page <= 1 %}disabled{% endif %}
+              class="btn btn-outline text-xs">
+        ← Назад
+      </button>
+    </form>
+    <span class="mono text-xs text-mac-muted">Страница {{ page }} из {{ total_pages }} · Всего материалов: {{ total_count }}</span>
+    <form hx-get="/api/ui/articles/table" hx-target="#articles-block"
+          hx-swap="innerHTML">
+      <input type="hidden" name="page" value="{{ [page + 1, total_pages] | min }}">
+      <button type="submit" {% if page >= total_pages %}disabled{% endif %}
+              class="btn btn-outline text-xs">
+        Вперёд →
+      </button>
+    </form>
+  </nav>
+{% endif %}

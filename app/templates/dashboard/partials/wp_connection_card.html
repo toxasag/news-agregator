@@ -1,0 +1,197 @@
+{#
+  Apple macOS HIG Drawer Card: WordPress REST API & SSH Remote Access.
+#}
+<div id="wp-conn-container" data-service-pane="wordpress" class="service-drawer-pane rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-4 mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-[#0071E3]/10 text-mac-blue flex items-center justify-center font-semibold">
+        WP
+      </div>
+      <div>
+        <h3 class="text-[15px] font-semibold text-mac-ink">Подключение WordPress и SSH</h3>
+        <p class="text-xs text-mac-secondary">
+          Публикация материалов через REST API и обслуживание сервера по SSH с шифрованием Fernet.
+        </p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      {% if wp_conn.is_active and wp_conn.has_app_password %}
+        <span class="mac-pill mac-pill-good">
+          <span class="w-1.5 h-1.5 rounded-full bg-mac-emerald animate-pulse"></span>
+          Подключено
+        </span>
+      {% else %}
+        <span class="mac-pill mac-pill-neutral">Не настроено</span>
+      {% endif %}
+
+      {% if encryption_ready %}
+        <span class="mac-pill mac-pill-blue">Fernet активен</span>
+      {% else %}
+        <span class="mac-pill mac-pill-warn">Без шифрования</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <form hx-post="/api/ui/settings/wordpress/save"
+        hx-target="#wp-conn-container"
+        hx-swap="outerHTML"
+        class="space-y-5">
+
+    {# REST API Group #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-mac-ink uppercase tracking-wider">Параметры REST API (Публикация)</span>
+        <span class="text-[11px] text-mac-secondary">Основной сайт издания</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-mac-secondary mb-1">URL сайта WordPress</label>
+          <input type="url" name="wp_base_url" value="{{ wp_conn.wp_base_url }}"
+                 placeholder="https://svodka.press"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">Имя пользователя (автор/админ)</label>
+          <input type="text" name="wp_app_user" value="{{ wp_conn.wp_app_user }}"
+                 placeholder="svodkapress_bot"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">Пароль приложения (Application Password)</label>
+          <input type="password" name="wp_app_password"
+                 placeholder="{% if wp_conn.has_app_password %}•••••••••••• (сохранен){% else %}xxxx xxxx xxxx xxxx{% endif %}"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+      </div>
+    </div>
+
+    {# SSH Remote Access Group #}
+    <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-mac-ink uppercase tracking-wider">Удаленный доступ по SSH (Файловая система)</span>
+        <span class="text-[11px] text-mac-secondary">Доступ к каталогу сайта</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-mac-secondary mb-1">SSH Хост / IP-адрес</label>
+          <input type="text" name="ssh_host" value="{{ wp_conn.ssh_host }}"
+                 placeholder="150.241.98.133 или svodka.press"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">SSH Пользователь</label>
+          <input type="text" name="ssh_user" value="{{ wp_conn.ssh_user or 'root' }}"
+                 placeholder="root"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">SSH Порт</label>
+          <input type="number" name="ssh_port" value="{{ wp_conn.ssh_port or 22 }}"
+                 placeholder="22"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">Путь к каталогу WordPress на сервере</label>
+          <input type="text" name="wp_document_root" value="{{ wp_conn.wp_document_root or '/var/www/html' }}"
+                 placeholder="/var/www/svodkapress"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-mac-secondary mb-1">Путь к файлу приватного ключа (опционально)</label>
+          <input type="text" name="ssh_key_path" value="{{ wp_conn.ssh_key_path }}"
+                 placeholder="/app/secrets/id_ed25519"
+                 class="w-full rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-mac-secondary mb-1">
+          Приватный SSH-ключ (содержимое ключа id_ed25519, шифруется Fernet)
+        </label>
+        <textarea name="ssh_private_key" rows="2"
+                  placeholder="{% if wp_conn.has_ssh_key %}•••••••••••• (приватный ключ сохранен в зашифрованном виде){% else %}-----BEGIN OPENSSH PRIVATE KEY-----...{% endif %}"
+                  class="w-full rounded-xl border border-black/[0.12] bg-white p-3 font-mono text-xs text-mac-ink focus:border-mac-blue focus:outline-none focus:ring-2 focus:ring-mac-blue/20"></textarea>
+      </div>
+    </div>
+
+    {# Activation Checkbox #}
+    <div class="flex items-center gap-2 px-1">
+      <input type="checkbox" id="wp_is_active" name="is_active" value="true"
+             {% if wp_conn.is_active %}checked{% endif %}
+             class="h-4 w-4 rounded border-black/[0.2] text-mac-blue focus:ring-mac-blue/30">
+      <label for="wp_is_active" class="text-xs font-medium text-mac-ink cursor-pointer">
+        Использовать данное подключение как активную боевую площадку для публикации
+      </label>
+    </div>
+
+    {# Actions Bar #}
+    <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-black/[0.06]">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="submit" class="mac-btn-primary">
+          Сохранить подключение
+        </button>
+
+        <button type="button"
+                hx-post="/api/ui/settings/wordpress/test"
+                hx-target="#wp-test-result"
+                hx-swap="innerHTML"
+                hx-include="#wp-conn-container form"
+                hx-indicator="#wp-test-spinner"
+                hx-disabled-elt="this"
+                class="mac-btn-secondary">
+          ⚡ Проверить связь (REST + SSH)
+        </button>
+
+        <button type="button"
+                hx-post="/api/ui/settings/wordpress/sync_categories"
+                hx-target="#wp-sync-result"
+                hx-swap="innerHTML"
+                hx-include="#wp-conn-container form"
+                hx-indicator="#wp-sync-spinner"
+                hx-disabled-elt="this"
+                class="mac-btn-accent">
+          🔄 Синхронизировать рубрики
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs text-mac-secondary">
+        <span id="wp-test-spinner" class="htmx-indicator flex items-center gap-1.5 text-mac-blue font-medium">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Проверяю WordPress & SSH...
+        </span>
+
+        <span id="wp-sync-spinner" class="htmx-indicator flex items-center gap-1.5 text-mac-blue font-medium">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Синхронизирую рубрики...
+        </span>
+      </div>
+    </div>
+  </form>
+
+  {# Inline Feedback Area — Directly under buttons! #}
+  {% if notice %}
+    <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 flex items-center justify-between gap-2">
+      <span>✅ <strong>WordPress & SSH:</strong> {{ notice }}</span>
+      <button type="button" onclick="this.parentElement.remove()" class="text-emerald-700 hover:text-emerald-950 font-medium cursor-pointer">✕</button>
+    </div>
+  {% endif %}
+  <div id="wp-test-result" class="mt-3 empty:hidden"></div>
+  <div id="wp-sync-result" class="mt-3 empty:hidden"></div>
+</div>

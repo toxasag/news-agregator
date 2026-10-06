@@ -1,0 +1,25 @@
+{#
+  Result of a profile change.
+
+  Reports what the server actually stored. A password change that failed
+  validation must not look like a success, so the error path is as prominent as
+  the confirmation.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% else %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-3 text-sm
+              text-emerald-200">
+    {{ message }}
+    {% if reload_hint %}
+      <p class="mt-1 text-xs text-emerald-300/80">
+        Обновите страницу, чтобы увидеть новое имя в верхней панели.
+      </p>
+    {% endif %}
+  </div>
+{% endif %}

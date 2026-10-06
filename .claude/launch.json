@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "panel",
+      "runtimeExecutable": "ssh",
+      "runtimeArgs": [
+        "-N",
+        "-o", "ExitOnForwardFailure=yes",
+        "-o", "BatchMode=yes",
+        "-o", "ServerAliveInterval=30",
+        "-i", "/Users/antonsagajdak/.ssh/svodkapress_deploy",
+        "-L", "8020:127.0.0.1:8000",
+        "root@144.31.141.17"
+      ],
+      "port": 8020
+    }
+  ]
+}

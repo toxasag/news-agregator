@@ -1,0 +1,54 @@
+<div id="ai-model-row-{{ m.db_id }}" class="flex flex-col py-1.5 px-2 rounded-lg hover:bg-white transition-colors border-b border-black/[0.04] text-[11px] group/model">
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 min-w-0 flex-1">
+      <span class="text-mac-ink font-medium font-mono truncate" title="{{ m.id }}">{{ m.id }}</span>
+      {% if m.is_working %}
+        <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold shrink-0">✓ РАБОТАЕТ</span>
+      {% elif m.error and m.error != 'Не тестировалась' %}
+        <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-medium shrink-0">✗ Ошибка</span>
+      {% else %}
+        <span class="px-2 py-0.5 rounded bg-black/[0.04] text-mac-secondary text-[10px] font-normal border border-black/[0.06] shrink-0">не проверена</span>
+      {% endif %}
+    </div>
+
+    {% if m.db_id %}
+      <div class="flex items-center gap-1 shrink-0">
+        <button type="button"
+                hx-post="/api/ui/ai/models/{{ m.db_id }}/test"
+                hx-target="#ai-model-row-{{ m.db_id }}"
+                hx-swap="outerHTML show:none"
+                hx-disabled-elt="this"
+                hx-indicator="#model-test-indicator-{{ m.db_id }}"
+                onclick="event.stopPropagation();"
+                class="px-2.5 py-1 rounded bg-black/[0.04] text-[10px] font-sans text-mac-ink hover:bg-[#0071E3] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+          <span>⚡ Тест</span>
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Индикатор активного тестирования модели с полосой прогресса #}
+  {% if m.db_id %}
+    <div id="model-test-indicator-{{ m.db_id }}" class="htmx-indicator mt-2 p-2 rounded-lg bg-blue-50/80 border border-blue-200 text-blue-900 text-[10px] flex-col gap-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="inline-flex items-center gap-1.5 font-medium">
+          <svg class="animate-spin h-3.5 w-3.5 text-[#0071E3] shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Тестирование <span class="font-mono font-semibold">{{ m.id }}</span>: отправка запроса...
+        </span>
+        <span class="font-mono text-[9px] text-blue-600 animate-pulse shrink-0">Ожидание ответа...</span>
+      </div>
+      <div class="h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
+        <div class="h-full bg-[#0071E3] rounded-full animate-progress-indeterminate"></div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if m.error and m.error != 'Не тестировалась' %}
+    <div class="mt-1 text-[10px] text-rose-600 bg-rose-50/70 border border-rose-200/80 rounded-md px-2 py-1 font-sans leading-relaxed break-words">
+      {{ m.error }}
+    </div>
+  {% endif %}
+</div>

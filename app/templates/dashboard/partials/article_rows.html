@@ -1,0 +1,52 @@
+{#
+  Article table rows. Returned standalone by the HTMX filter/search endpoint and
+  included inline on first paint, so the table works without JavaScript.
+#}
+{% if not articles %}
+  <tr>
+    <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">
+      Материалов нет. Либо конвейер ещё не отработал, либо фильтр слишком узкий.
+    </td>
+  </tr>
+{% else %}
+  {% for article in articles %}
+    <tr class="hover:bg-slate-900/40">
+      <td class="px-3 py-2 mono text-slate-500">{{ article.id }}</td>
+      <td class="px-3 py-2 text-slate-200">
+        {# Autoescaped: a generated title is model output and must not be markup. #}
+        <div class="max-w-xl truncate" title="{{ article.title }}">
+          {{ article.title }}
+        </div>
+        {% if article.url_slug %}
+          <div class="mono text-xs text-slate-600">{{ article.url_slug }}</div>
+        {% endif %}
+      </td>
+      <td class="px-3 py-2 mono text-xs text-slate-400">{{ article.category }}</td>
+      <td class="px-3 py-2">
+        {% set state = article.status.value if article.status else '' %}
+        <span class="rounded px-2 py-0.5 text-xs mono
+          {% if state in ('distributed', 'wp_published') %}
+            bg-emerald-950/60 text-emerald-300
+          {% elif state == 'failed' %}
+            bg-red-950/60 text-red-300
+          {% elif state == 'media_ready' %}
+            bg-sky-950/60 text-sky-300
+          {% else %}
+            bg-slate-800 text-slate-400
+          {% endif %}">
+          {{ state }}
+        </span>
+      </td>
+      <td class="px-3 py-2 text-right">
+        <button
+          hx-get="/api/ui/articles/{{ article.id }}/edit"
+          hx-target="#article-editor"
+          hx-swap="innerHTML"
+          class="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300
+                 hover:border-slate-500 hover:text-white">
+          Править
+        </button>
+      </td>
+    </tr>
+  {% endfor %}
+{% endif %}

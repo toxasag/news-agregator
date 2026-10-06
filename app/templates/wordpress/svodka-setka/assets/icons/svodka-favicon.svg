@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Сводка Пресс</title><g transform="translate(-12.42 -12.42) scale(1.097)">
+  <title id="title">Сводка Пресс — фирменный знак</title>
+  <g id="symbol">
+    <!-- Squircle editorial badge with real negative-space "С / S" digest ribbons -->
+    <path fill="#0070FF" fill-rule="evenodd" d="M 72 16 H 184 C 214.9 16 240 41.1 240 72 V 184 C 240 214.9 214.9 240 184 240 H 72 C 41.1 240 16 214.9 16 184 V 72 C 16 41.1 41.1 16 72 16 Z M 96 56 H 152 L 136 92 H 96 C 87.2 92 80 99.2 80 108 C 80 116.8 87.2 124 96 124 H 160 C 186.5 124 208 145.5 208 172 C 208 189.7 193.7 204 176 204 H 72 L 88 168 H 160 C 168.8 168 176 160.8 176 152 C 176 143.2 168.8 136 160 136 H 96 C 69.5 136 48 114.5 48 88 C 48 70.3 62.3 56 80 56 Z"/>
+    <!-- Live pulse beacon (top-right accent) -->
+    <circle cx="192" cy="72" r="18" fill="#FF3B30"/>
+  </g>
+</g></svg>

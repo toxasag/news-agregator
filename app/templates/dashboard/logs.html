@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Логи{% endblock %}
+{% block heading %}Живые логи конвейера{% endblock %}
+{% block subheading %}
+  Поток событий воркеров через Server-Sent Events. Соединение восстанавливается
+  автоматически.
+{% endblock %}
+
+{% block actions %}
+  <div class="flex items-center gap-2">
+    <span id="sse-state"
+          class="rounded bg-slate-800 px-2 py-1 text-xs text-slate-400">
+      соединение…
+    </span>
+    <button id="sse-clear"
+            class="rounded-md border border-slate-700 px-3 py-1.5 text-xs
+                   text-slate-300 hover:border-slate-500 hover:text-white">
+      Очистить
+    </button>
+    <button id="sse-pause"
+            class="rounded-md border border-slate-700 px-3 py-1.5 text-xs
+                   text-slate-300 hover:border-slate-500 hover:text-white">
+      Пауза
+    </button>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div id="terminal"
+       class="terminal h-[32rem] overflow-y-auto rounded-lg border border-slate-800
+              bg-black/60 p-3 text-xs mono leading-relaxed">
+    <div class="text-slate-600">Ожидание событий…</div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  var terminal = document.getElementById('terminal');
+  var stateBadge = document.getElementById('sse-state');
+  var source = null;
+  var paused = false;
+  var lineCount = 0;
+
+  // The DOM is the only buffer here, and an unbounded one would grow until the
+  // tab is killed: a busy pipeline emits thousands of lines an hour.
+  var MAX_LINES = 500;
+
+  var LEVEL_COLOURS = {
+    DEBUG: 'text-slate-500',
+    INFO: 'text-slate-300',
+    WARNING: 'text-amber-300',
+    ERROR: 'text-red-400',
+    CRITICAL: 'text-red-300 font-semibold'
+  };
+
+  function setState(text, tone) {
+    stateBadge.textContent = text;
+    stateBadge.className =
+      'rounded px-2 py-1 text-xs ' +
+      (tone === 'ok'
+        ? 'bg-emerald-950/60 text-emerald-300'
+        : tone === 'error'
+          ? 'bg-red-950/60 text-red-300'
+          : 'bg-slate-800 text-slate-400');
+  }
+
+  function append(entry) {
+    if (paused) {
+      return;
+    }
+    if (lineCount === 0) {
+      terminal.innerHTML = '';
+    }
+
+    // The reader is only pinned to the bottom if they were already there, so
+    // scrolling up to read a traceback is not fought by every new line.
+    var pinned =
+      terminal.scrollHeight - terminal.scrollTop - terminal.clientHeight < 40;
+
+    var line = document.createElement('div');
+    line.className = 'whitespace-pre-wrap break-words';
+
+    var time = document.createElement('span');
+    time.className = 'text-slate-600';
+    // Only the clock portion: the date is the same for everything on screen.
+    time.textContent = (entry.ts || '').slice(11, 19) + ' ';
+
+    var level = document.createElement('span');
+    level.className = LEVEL_COLOURS[entry.level] || 'text-slate-300';
+    level.textContent = (entry.level || 'INFO').padEnd(8, ' ');
+
+    var name = document.createElement('span');
+    name.className = 'text-sky-400';
+    name.textContent = (entry.logger || '') + ': ';
+
+    var message = document.createElement('span');
+    message.className = LEVEL_COLOURS[entry.level] || 'text-slate-300';
+    // `textContent`, never innerHTML: a log line can contain a scraped page's
+    // markup, and the dashboard must not be where it finally executes.
+    message.textContent = entry.message || '';
+
+    line.appendChild(time);
+    line.appendChild(level);
+    line.appendChild(name);
+    line.appendChild(message);
+
+    if (entry.traceback) {
+      var trace = document.createElement('div');
+      trace.className = 'pl-4 text-red-500/80 whitespace-pre-wrap break-words';
+      trace.textContent = entry.traceback;
+      line.appendChild(trace);
+    }
+
+    terminal.appendChild(line);
+    lineCount += 1;
+
+    while (lineCount > MAX_LINES && terminal.firstChild) {
+      terminal.removeChild(terminal.firstChild);
+      lineCount -= 1;
+    }
+    if (pinned) {
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  }
+
+  function connect() {
+    // EventSource reconnects on its own using the `retry` the server sent, so no
+    // manual backoff loop is needed here.
+    source = new EventSource('/api/logs/stream');
+
+    source.addEventListener('connected', function () {
+      setState('подключено', 'ok');
+    });
+
+    source.addEventListener('log', function (event) {
+      try {
+        append(JSON.parse(event.data));
+      } catch (error) {
+        // A malformed frame must not stop the stream.
+        append({ level: 'WARNING', logger: 'dashboard', message: event.data });
+      }
+    });
+
+    source.addEventListener('error', function () {
+      // Fired both on a dropped connection and on a server `error` event.
+      setState('переподключение…', 'error');
+    });
+  }
+
+  document.getElementById('sse-clear').addEventListener('click', function () {
+    terminal.innerHTML = '<div class="text-slate-600">Очищено.</div>';
+    lineCount = 0;
+    fetch('/api/logs/clear', { method: 'POST' }).catch(function () {});
+  });
+
+  document.getElementById('sse-pause').addEventListener('click', function (event) {
+    paused = !paused;
+    event.target.textContent = paused ? 'Продолжить' : 'Пауза';
+    setState(paused ? 'пауза' : 'подключено', paused ? 'idle' : 'ok');
+  });
+
+  // Without this the connection survives navigation in a bfcache-restored page
+  // and the browser holds an open stream per visit.
+  window.addEventListener('pagehide', function () {
+    if (source) {
+      source.close();
+      source = null;
+    }
+  });
+
+  connect();
+})();
+</script>
+{% endblock %}

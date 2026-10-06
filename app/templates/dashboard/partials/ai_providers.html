@@ -1,0 +1,191 @@
+{#
+  AI provider keys management UI.
+
+  Shows provider keys grouped by provider name, with model counts and status.
+  Includes form to add new keys and buttons to delete/discover/test.
+#}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4 py-3 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+
+<section class="card">
+  <header class="card-head">
+    <div>
+      <h2 class="text-sm font-semibold" style="color: var(--ink);">Ключи ИИ</h2>
+      <p class="mt-0.5 text-xs" style="color: var(--mid);">
+        API-ключи провайдеров (OpenRouter, Together, Anthropic, Google, custom).
+        Ключи шифруются Fernet. Модели обнаруживаются автоматически через
+        <span class="mono">/v1/models</span>.
+      </p>
+    </div>
+  </header>
+
+  {# Add key form #}
+  <form hx-post="/api/ui/lab/providers/add"
+        hx-target="#ai-providers-container"
+        hx-swap="innerHTML"
+        class="border-b border-slate-200 px-4 py-3">
+    <div class="grid gap-3 sm:grid-cols-4">
+      <div>
+        <label for="provider_name" class="block text-xs text-slate-600">Провайдер</label>
+        <input id="provider_name" name="provider_name" type="text" required
+               placeholder="google, openrouter, anthropic"
+               class="field mt-1">
+      </div>
+      <div>
+        <label for="api_key" class="block text-xs text-slate-600">API-ключ</label>
+        <input id="api_key" name="api_key" type="password" required
+               placeholder="sk-..."
+               class="field mt-1">
+      </div>
+      <div>
+        <label for="base_url" class="block text-xs text-slate-600">Base URL (опционально)</label>
+        <input id="base_url" name="base_url" type="url"
+               placeholder="https://api.openrouter.ai/v1"
+               class="field mt-1">
+      </div>
+      <div class="flex items-end gap-2">
+        <button type="submit"
+                class="btn btn-primary">
+          Добавить ключ
+        </button>
+        <button type="button"
+                hx-post="/api/ui/lab/providers/test-all"
+                hx-target="#ai-providers-container"
+                hx-swap="innerHTML"
+                hx-indicator="#test-all-spinner"
+                class="btn btn-outline">
+          Тестировать все
+        </button>
+        <span id="test-all-spinner" class="htmx-indicator text-xs text-slate-600">
+          тестирование…
+        </span>
+      </div>
+    </div>
+  </form>
+
+  {# Provider groups #}
+  <div id="ai-providers-result">
+    {% if test_results %}
+      <div class="border-b border-slate-200 px-4 py-3 bg-blue-50">
+        <h3 class="text-sm font-semibold mb-2">Результаты тестирования:</h3>
+        <div class="flex flex-wrap gap-3">
+          {% for provider_name, result in test_results.items() %}
+            <div class="chip {% if result.working > 0 %}chip-good{% else %}chip-bad{% endif %}">
+              {{ provider_name }}: {{ result.working }}/{{ result.working + result.failed }} работают
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if grouped_providers %}
+      {% for provider_name, keys in grouped_providers.items() %}
+        <div class="border-b border-slate-200 px-4 py-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h3 class="text-sm font-semibold" style="color: var(--ink);">
+              {{ provider_name }}
+              <span class="text-slate-600">({{ keys | length }} ключ(ей))</span>
+            </h3>
+          </div>
+
+          <div class="space-y-2">
+            {% for key in keys %}
+              <div class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div class="flex items-center gap-3">
+                    <span class="mono text-xs text-slate-600">
+                      Ключ #{{ key.id }}
+                    </span>
+                    {% if key.base_url %}
+                      <span class="mono text-xs text-slate-500">
+                        {{ key.base_url[:50] }}{% if key.base_url | length > 50 %}…{% endif %}
+                      </span>
+                    {% endif %}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="chip {% if key.models_count > 0 %}{% if key.working_models_count == key.models_count %}chip-good{% elif key.working_models_count > 0 %}chip-warn{% else %}chip-bad{% endif %}{% else %}chip-outline{% endif %} text-xs">
+                      {{ key.working_models_count }}/{{ key.models_count }} моделей
+                    </span>
+                    {% if not key.is_active %}
+                      <span class="chip chip-outline text-xs">Выключен оператором</span>
+                    {% endif %}
+                    {% if key.health == 'error' %}
+                      <span class="chip chip-bad text-xs" title="{{ key.last_error }}">Ошибка проверки</span>
+                    {% elif key.health == 'catalogue_accessible' %}
+                      <span class="chip chip-outline text-xs">Каталог доступен</span>
+                    {% else %}
+                      <span class="chip chip-outline text-xs">Не проверен</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                  <button hx-post="/api/ui/lab/providers/{{ key.id }}/discover"
+                          hx-target="#ai-providers-container"
+                          hx-swap="innerHTML"
+                          hx-indicator="#discover-spinner-{{ key.id }}"
+                          class="btn btn-outline text-xs">
+                    Обнаружить модели
+                  </button>
+                  <button hx-post="/api/ui/lab/providers/{{ key.id }}/test"
+                          hx-target="#ai-providers-container"
+                          hx-swap="innerHTML"
+                          hx-indicator="#test-spinner-{{ key.id }}"
+                          class="btn btn-outline text-xs">
+                    Проверить работоспособность
+                  </button>
+                  <button hx-post="/api/ui/lab/providers/{{ key.id }}/test-all"
+                          hx-target="#ai-providers-container"
+                          hx-swap="innerHTML"
+                          hx-indicator="#test-all-spinner-{{ key.id }}"
+                          class="btn btn-outline text-xs">
+                    Тестировать модели
+                  </button>
+                  <button hx-post="/api/ui/lab/providers/{{ key.id }}/delete"
+                          hx-target="#ai-providers-container"
+                          hx-swap="innerHTML"
+                          hx-confirm="Удалить ключ #{{ key.id }} и все его модели?"
+                          class="btn btn-danger text-xs">
+                    Удалить ключ
+                  </button>
+                  <span id="discover-spinner-{{ key.id }}" class="htmx-indicator text-xs text-slate-600">
+                    загрузка…
+                  </span>
+                  <span id="test-spinner-{{ key.id }}" class="htmx-indicator text-xs text-slate-600">
+                    проверка…
+                  </span>
+                  <span id="test-all-spinner-{{ key.id }}" class="htmx-indicator text-xs text-slate-600">
+                    тестирование…
+                  </span>
+                </div>
+
+                {# Models list #}
+                {% if key.models %}
+                  <div class="mt-3 border-t border-slate-200 pt-3">
+                    <div class="flex flex-wrap gap-1">
+                      {% for model in key.models %}
+                        <span class="chip {% if not model.last_tested_at %}chip-outline{% elif model.is_working %}chip-good{% else %}chip-bad{% endif %} text-xs"
+                              title="{% if not model.last_tested_at %}Не проверена генерацией{% elif model.is_working %}Проверена генерацией{% else %}{{ model.error_message or 'Ошибка проверки' }}{% endif %}">
+                          {{ model.model_id[:40] }}{% if model.model_id | length > 40 %}…{% endif %}
+                        </span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="px-4 py-6 text-center text-sm text-slate-600">
+        Ключи ИИ не добавлены. Используйте форму выше.
+      </div>
+    {% endif %}
+  </div>
+</section>

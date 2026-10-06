@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Настройки ИИ{% endblock %}
+{% block heading %}Настройки ИИ{% endblock %}
+{% block subheading %}
+  Мульти-провайдерные пулы ключей (Google Gemini, OpenRouter, OpenAI, Anthropic, DeepSeek, Fal AI), авторотация Round-Robin, Failover и матрица назначения моделей.
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  {# Google AI Studio Key Pool Container #}
+  <section id="ai-keys-pool-container"
+           hx-get="/api/ui/ai/keys-pool"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+    {% include "partials/ai_keys_pool.html" %}
+  </section>
+
+  {# Token Usage & Provider Stability Container #}
+  <div id="ai-usage-stats-container">
+    {% include "partials/ai_usage_stats.html" %}
+  </div>
+
+  {# Working Models Catalog Bento Box #}
+  {% if catalog and catalog.by_provider %}
+    <section class="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm space-y-4">
+      <div class="border-b border-black/[0.06] pb-3 flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-mac-ink">Каталог проверенных моделей</h3>
+            <span class="mac-pill mac-pill-good text-[10px]">Всего: {{ catalog.total_working }} раб.</span>
+          </div>
+          <p class="text-xs text-mac-secondary mt-0.5">
+            Модели, прошедшие проверку тестовым пингом и готовые к выполнению задач в конвейере.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for prov in catalog.by_provider %}
+          <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-mac-ink font-mono">{{ prov.display_name }}</span>
+              <span class="mac-pill mac-pill-blue text-[10px]">{{ prov.models | length }} моделей</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              {% for m in prov.models %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-mono text-[11px]"
+                      title="Проверено в {{ m.last_tested_at }}">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  {{ m.id }}
+                  <span class="text-[10px] text-emerald-600 font-semibold">✓</span>
+                </span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+
+        {# Always include local FastEmbed as zero-cost guaranteed capability #}
+        <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-3.5 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-mac-ink font-mono">Локальный FastEmbed</span>
+            <span class="mac-pill mac-pill-good text-[10px]">0 токенов (free)</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-mono text-[11px]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              BAAI/bge-m3
+              <span class="text-[10px] text-emerald-600 font-semibold">✓</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {# Role Assignment Matrix #}
+  {% include "partials/ai_roles_matrix.html" %}
+
+</div>
+{% endblock %}

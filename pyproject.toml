@@ -1,0 +1,91 @@
+[project]
+name = "svodkapress"
+version = "1.0.0"
+description = "Autonomous news aggregation, enrichment and multi-platform publishing pipeline"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 90
+src = ["app", "scripts", "migrations"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "C4",
+    "ASYNC",
+    "S",
+    "SIM",
+    "RUF",
+    "TID",
+    "PL",
+    "BLE",
+]
+ignore = [
+    "S101",
+    "PLR0913",
+    "PLR2004",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/services/image_generator.py" = ["RUF001"]
+"app/services/yandex_connection.py" = ["RUF001", "BLE001", "PLR0911"]
+"app/services/google_connection.py" = ["RUF001", "BLE001", "PLR0911", "S105"]
+"app/services/bing_connection.py" = ["RUF001", "BLE001", "PLR0911"]
+"app/services/audience_analytics.py" = ["RUF001", "RUF002", "RUF003", "BLE001", "PLR0912", "PLR0915", "E501"]
+"app/services/telegram_connection.py" = ["RUF001", "BLE001", "PLR0911", "PLR0915", "S105", "E501"]
+"app/services/social_vk.py" = ["BLE001", "ASYNC230", "E501", "RUF001", "PLR0911", "PLR0912", "PLR0915"]
+"app/workers/publisher_worker.py" = ["PLR0915"]
+"migrations/*" = ["E501", "N999", "F403", "F405"]
+# The smoke test intentionally uses a fixed fake bcrypt digest, non-crypto
+# randomness for embedding fixtures, and one long linear verification flow.
+"scripts/smoke_test.py" = ["S311", "S106", "PLR0915"]
+# Credential-rotation tests must pass literal passwords to the functions under
+# test; that is the behaviour being verified, not a leaked secret. `SLF001` covers
+# resetting the module-level secret box so a fresh Fernet key takes effect.
+# `RUF001`/`RUF002` cover Russian channel titles under test (ТАСС, Интерфакс):
+# the Cyrillic letters are the subject matter, not a homoglyph mistake.
+"tests/test_telegram_accounts.py" = ["S105", "S106", "SLF001", "RUF001", "RUF002"]
+"tests/test_dashboard_ui.py" = ["S105", "S106"]
+"tests/test_yandex_connection.py" = ["S105", "S106", "RUF001"]
+"tests/test_google_connection.py" = ["S105", "S106", "RUF001"]
+"tests/test_bing_connection.py" = ["S105", "S106", "RUF001"]
+"tests/test_telegram_connection.py" = ["S105", "S106", "RUF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = []
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_reexport = false
+ignore_missing_imports = true
+exclude = ["^migrations/versions/", "^\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = ["migrations.*"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: latency and large-corpus checks; slower than a unit test but still run by default",
+]
+filterwarnings = [
+    "error",
+    "ignore:coroutine 'Connection._cancel' was never awaited:RuntimeWarning",
+    "ignore:unclosed Connection <fakeredis:ResourceWarning",
+]

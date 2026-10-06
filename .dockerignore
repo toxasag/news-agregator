@@ -1,0 +1,33 @@
+# Exclude everything that must not enter the build context, so the image stays
+# small and no local secrets or virtualenvs are baked into layers.
+.git/
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+
+logs/
+storage/
+*.log
+
+docs/
+.kilo/
+.idea/
+.vscode/
+.DS_Store
+
+docker-compose*.yml
+Dockerfile

@@ -1,0 +1,131 @@
+{# Multi-step Telegram sign-in. Session strings never reach this template. #}
+{% if error %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-sm
+              text-rose-200">
+    {{ error }}
+  </div>
+{% endif %}
+
+{% if done %}
+  <div role="status"
+       class="rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-3 py-2
+              text-sm text-emerald-200">
+    Аккаунт {{ phone }} подключён{% if used_two_factor %} (с 2FA){% endif %}.
+  </div>
+{% elif pending and pending.step == 'qr' %}
+  <div class="rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-3">
+    <p class="text-sm text-slate-200">Отсканируйте код в Telegram</p>
+    <p class="mt-1 text-xs text-slate-500">
+      Настройки → Устройства → Подключить устройство. Код живёт несколько минут.
+    </p>
+    {% if pending.qr_png_data_uri %}
+      <img src="{{ pending.qr_png_data_uri }}" alt="QR-код входа в Telegram"
+           width="192" height="192"
+           class="mt-3 h-48 w-48 rounded bg-white p-2">
+    {% endif %}
+    {% if pending.qr_url %}
+      <p class="mono mt-2 break-all text-[11px] text-slate-500">{{ pending.qr_url }}</p>
+    {% endif %}
+    <div hx-get="/api/ui/sources/telegram/auth/{{ pending.login_id }}/status"
+         hx-trigger="every 2s"
+         hx-target="#telegram-auth-panel"
+         hx-swap="innerHTML"></div>
+  </div>
+{% elif pending and pending.step == 'code' %}
+  <form class="space-y-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-3"
+        hx-post="/api/ui/sources/telegram/auth/{{ pending.login_id }}/code"
+        hx-target="#telegram-auth-panel"
+        hx-swap="innerHTML">
+    <p class="text-sm text-slate-200">Код из Telegram для {{ pending.phone_number }}</p>
+    <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+           required placeholder="12345"
+           class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                  py-2 text-sm text-white mono">
+    <button type="submit"
+            class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                   text-slate-900 hover:bg-white">
+      Подтвердить код
+    </button>
+  </form>
+{% elif pending and pending.step == 'password' %}
+  <form class="space-y-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-3"
+        hx-post="/api/ui/sources/telegram/auth/{{ pending.login_id }}/password"
+        hx-target="#telegram-auth-panel"
+        hx-swap="innerHTML">
+    <p class="text-sm text-slate-200">Облачный пароль 2FA</p>
+    <input name="password" type="password" autocomplete="current-password" required
+           class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                  py-2 text-sm text-white">
+    <button type="submit"
+            class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                   text-slate-900 hover:bg-white">
+      Войти
+    </button>
+  </form>
+{% elif pending and pending.step == 'error' %}
+  <div role="alert"
+       class="rounded-lg border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-sm
+              text-rose-200">
+    {{ pending.error or 'Вход не удался. Начните заново.' }}
+  </div>
+{% elif method == 'qr' %}
+  <form class="space-y-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-3"
+        hx-post="/api/ui/sources/telegram/auth/qr"
+        hx-target="#telegram-auth-panel"
+        hx-swap="innerHTML">
+    <p class="text-sm text-slate-200">Данные приложения с my.telegram.org</p>
+    <label class="block text-xs text-slate-400">api_id
+      <input name="api_id" type="number" required
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white mono">
+    </label>
+    <label class="block text-xs text-slate-400">api_hash
+      <input name="api_hash" type="text" required
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white mono">
+    </label>
+    <label class="block text-xs text-slate-400">Подпись (необязательно)
+      <input name="label" type="text"
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white">
+    </label>
+    <button type="submit"
+            class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                   text-slate-900 hover:bg-white">
+      Показать QR
+    </button>
+  </form>
+{% elif method == 'phone' %}
+  <form class="space-y-2 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-3"
+        hx-post="/api/ui/sources/telegram/auth/phone"
+        hx-target="#telegram-auth-panel"
+        hx-swap="innerHTML">
+    <p class="text-sm text-slate-200">Номер и данные приложения</p>
+    <label class="block text-xs text-slate-400">Телефон
+      <input name="phone" type="tel" required placeholder="+79001234567"
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white mono">
+    </label>
+    <label class="block text-xs text-slate-400">api_id
+      <input name="api_id" type="number" required
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white mono">
+    </label>
+    <label class="block text-xs text-slate-400">api_hash
+      <input name="api_hash" type="text" required
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white mono">
+    </label>
+    <label class="block text-xs text-slate-400">Подпись (необязательно)
+      <input name="label" type="text"
+             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3
+                    py-2 text-sm text-white">
+    </label>
+    <button type="submit"
+            class="rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium
+                   text-slate-900 hover:bg-white">
+      Прислать код
+    </button>
+  </form>
+{% endif %}

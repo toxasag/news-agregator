@@ -1,0 +1,220 @@
+{#
+  Apple macOS HIG Drawer Panes: Individual Google Services (Google Analytics 4 & Google Search Console).
+  Each service has its own isolated data-service-pane so only the selected service opens in the Slide-Over Drawer.
+#}
+<div id="google-conn-container" class="space-y-4">
+
+  {# ========================================================================
+     1. GOOGLE ANALYTICS 4 (google_ga4)
+     ======================================================================== #}
+  <div data-service-pane="google_ga4" class="service-drawer-pane rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-sm">
+          GA4
+        </div>
+        <div>
+          <h3 class="text-[15px] font-semibold text-mac-ink">Google Analytics 4 (Data API v1beta)</h3>
+          <p class="text-xs text-mac-secondary">
+            Статистика посетителей, сессий и просмотров сайта через официальный Google Analytics Data API.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button"
+                onclick="document.getElementById('google-ga4-guide').classList.toggle('hidden')"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/70 px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors cursor-pointer">
+          <span>📖 Как подключить GA4</span>
+        </button>
+        {% if google_conn.has_ga4 %}
+          <span class="mac-pill mac-pill-good">GA4: {{ google_conn.ga4_property_id }}</span>
+        {% else %}
+          <span class="mac-pill mac-pill-neutral">GA4 не настроена</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Collapsible Guide (Hidden by default) #}
+    <div id="google-ga4-guide" class="hidden rounded-xl border border-amber-200/80 bg-[#FFFDF9] p-4 text-xs text-mac-ink space-y-2.5">
+      <div class="flex items-center justify-between border-b border-amber-200/60 pb-2">
+        <span class="font-semibold text-mac-ink">Подключение Google Analytics 4</span>
+        <button type="button" onclick="document.getElementById('google-ga4-guide').classList.add('hidden')" class="text-amber-700 hover:text-amber-900 font-medium cursor-pointer">Свернуть ✕</button>
+      </div>
+      <ol class="list-decimal list-inside space-y-1.5 text-[11.5px] text-mac-secondary leading-relaxed">
+        <li>В <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Google Analytics</a> откройте <strong>Администратор → Сведения о ресурсе</strong> и скопируйте 9-значный <strong>Property ID</strong> (например, <code class="bg-black/[0.04] px-1 rounded">123456789</code>).</li>
+        <li>В разделе <strong>Управление доступом к ресурсу</strong> добавьте email вашего Google Service Account (<code class="bg-black/[0.04] px-1 rounded">...@...iam.gserviceaccount.com</code>) с ролью <strong>Читатель (Viewer)</strong>.</li>
+        <li>Вставьте JSON-ключ сервисного аккаунта ниже (он общий для GA4 и Search Console).</li>
+      </ol>
+    </div>
+
+    <form hx-post="/api/ui/settings/google/save"
+          hx-target="#google-conn-container"
+          hx-swap="outerHTML"
+          hx-indicator="#ga4-spinner"
+          class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-mac-ink mb-1">GA4 Property ID (Идентификатор ресурса)</label>
+        <input type="text" name="ga4_property_id" value="{{ google_conn.ga4_property_id }}"
+               placeholder="Например: 123456789 или properties/123456789"
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3.5 py-2 text-xs font-mono text-mac-ink focus:border-amber-500 focus:bg-white focus:outline-none">
+      </div>
+
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-mac-ink">Google Service Account JSON (общий ключ Google)</span>
+          {% if google_conn.has_service_account %}
+            <span class="text-[11px] text-emerald-600 font-medium">✅ Ключ сохранён ({{ google_conn.service_account_email }})</span>
+          {% endif %}
+        </div>
+        <textarea name="service_account_json" rows="3"
+                  placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", "client_email": "..."} — оставьте пустым, если ключ уже сохранён'
+                  class="w-full font-mono text-[11px] rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-mac-ink focus:border-blue-500 focus:outline-none"></textarea>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-black/[0.06]">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="submit"
+                  class="rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white px-4 py-2 text-xs font-semibold shadow-2xs transition-colors cursor-pointer">
+            Сохранить настройки GA4
+          </button>
+
+          <button type="button"
+                  hx-post="/api/ui/settings/google/test-ga4"
+                  hx-target="#ga4-test-result"
+                  hx-swap="innerHTML"
+                  hx-include="closest form"
+                  hx-indicator="#ga4-spinner"
+                  hx-disabled-elt="this"
+                  class="rounded-xl bg-white border border-black/[0.12] px-3.5 py-2 text-xs font-semibold text-mac-ink hover:bg-black/[0.03] shadow-2xs transition-colors cursor-pointer disabled:opacity-50">
+            ⚡ Проверить GA4
+          </button>
+        </div>
+
+        <span id="ga4-spinner" class="htmx-indicator flex items-center gap-1.5 text-amber-600 text-xs font-medium">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Проверяю Google Analytics 4...
+        </span>
+      </div>
+
+      {# Inline Feedback Area — Directly under buttons! #}
+      {% if notice %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 flex items-center justify-between">
+          <span>✅ <strong>Google Analytics 4:</strong> {{ notice }}</span>
+          <button type="button" onclick="this.parentElement.remove()" class="text-emerald-700 hover:text-emerald-950 cursor-pointer">✕</button>
+        </div>
+      {% endif %}
+      <div id="ga4-test-result" class="empty:hidden"></div>
+    </form>
+  </div>
+
+  {# ========================================================================
+     2. GOOGLE SEARCH CONSOLE (google_gsc)
+     ======================================================================== #}
+  <div data-service-pane="google_gsc" class="service-drawer-pane rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm space-y-5 hidden">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.06] pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-sm">
+          GSC
+        </div>
+        <div>
+          <h3 class="text-[15px] font-semibold text-mac-ink">Google Search Console (Индексация и Поиск Google)</h3>
+          <p class="text-xs text-mac-secondary">
+            Отслеживание кликов, показов, CTR, позиций в Google, инспекция URL и проверка Sitemaps.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button"
+                onclick="document.getElementById('google-gsc-guide').classList.toggle('hidden')"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors cursor-pointer">
+          <span>📖 Как подключить Search Console</span>
+        </button>
+        {% if google_conn.has_gsc %}
+          <span class="mac-pill mac-pill-good">Подключен: {{ google_conn.gsc_site_url }}</span>
+        {% else %}
+          <span class="mac-pill mac-pill-neutral">Не настроен</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Collapsible Guide (Hidden by default) #}
+    <div id="google-gsc-guide" class="hidden rounded-xl border border-emerald-200/80 bg-[#F8FAFC] p-4 text-xs text-mac-ink space-y-2.5">
+      <div class="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+        <span class="font-semibold text-mac-ink">Подключение Google Search Console</span>
+        <button type="button" onclick="document.getElementById('google-gsc-guide').classList.add('hidden')" class="text-emerald-700 hover:text-emerald-900 font-medium cursor-pointer">Свернуть ✕</button>
+      </div>
+      <ol class="list-decimal list-inside space-y-1.5 text-[11.5px] text-mac-secondary leading-relaxed">
+        <li>В <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">Search Console</a> откройте <strong>Настройки → Пользователи и разрешения</strong> и добавьте email сервисного аккаунта (<code class="bg-black/[0.04] px-1 rounded">...@...iam.gserviceaccount.com</code>).</li>
+        <li>Укажите URL ресурса ниже (например, <code class="bg-black/[0.04] px-1 rounded">sc-domain:svodka.press</code> или <code class="bg-black/[0.04] px-1 rounded">https://svodka.press/</code>).</li>
+      </ol>
+    </div>
+
+    <form hx-post="/api/ui/settings/google/save"
+          hx-target="#google-conn-container"
+          hx-swap="outerHTML"
+          hx-indicator="#gsc-spinner"
+          class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-mac-ink mb-1">URL сайта в Search Console</label>
+        <input type="text" name="gsc_site_url" value="{{ google_conn.gsc_site_url }}"
+               placeholder="sc-domain:svodka.press или https://svodka.press/"
+               class="w-full rounded-xl border border-black/[0.12] bg-[#FAFAFA] px-3.5 py-2 text-xs font-mono text-mac-ink focus:border-emerald-600 focus:bg-white focus:outline-none">
+      </div>
+
+      <div class="rounded-xl border border-black/[0.06] bg-[#FAFAFA] p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-mac-ink">Google Service Account JSON (общий ключ Google)</span>
+          {% if google_conn.has_service_account %}
+            <span class="text-[11px] text-emerald-600 font-medium">✅ Ключ сохранён ({{ google_conn.service_account_email }})</span>
+          {% endif %}
+        </div>
+        <textarea name="service_account_json" rows="3"
+                  placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", "client_email": "..."} — оставьте пустым, если ключ уже сохранён'
+                  class="w-full font-mono text-[11px] rounded-xl border border-black/[0.12] bg-white px-3.5 py-2 text-mac-ink focus:border-blue-500 focus:outline-none"></textarea>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-black/[0.06]">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="submit"
+                  class="rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white px-4 py-2 text-xs font-semibold shadow-2xs transition-colors cursor-pointer">
+            Сохранить настройки Search Console
+          </button>
+
+          <button type="button"
+                  hx-post="/api/ui/settings/google/test-gsc"
+                  hx-target="#gsc-test-result"
+                  hx-swap="innerHTML"
+                  hx-include="closest form"
+                  hx-indicator="#gsc-spinner"
+                  hx-disabled-elt="this"
+                  class="rounded-xl bg-white border border-black/[0.12] px-3.5 py-2 text-xs font-semibold text-mac-ink hover:bg-black/[0.03] shadow-2xs transition-colors cursor-pointer disabled:opacity-50">
+            ⚡ Проверить Search Console
+          </button>
+        </div>
+
+        <span id="gsc-spinner" class="htmx-indicator flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Проверяю Search Console...
+        </span>
+      </div>
+
+      {# Inline Feedback Area — Directly under buttons! #}
+      {% if notice %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 flex items-center justify-between">
+          <span>✅ <strong>Google Search Console:</strong> {{ notice }}</span>
+          <button type="button" onclick="this.parentElement.remove()" class="text-emerald-700 hover:text-emerald-950 cursor-pointer">✕</button>
+        </div>
+      {% endif %}
+      <div id="gsc-test-result" class="empty:hidden"></div>
+    </form>
+  </div>
+
+</div>

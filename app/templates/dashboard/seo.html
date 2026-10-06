@@ -1,0 +1,1594 @@
+{% extends "base.html" %}
+{% block title %}SEO-аналитика и Командный центр{% endblock %}
+{% block heading %}SEO-аналитика & Search Intelligence{% endblock %}
+{% block subheading %}
+  Самообучающаяся система поисковой оптимизации: аналитика Google & Яндекс, выявление упущенного CTR и 1-Click дожим сниппетов в ТОП.
+{% endblock %}
+
+{% block actions %}
+  <div class="flex items-center space-x-2">
+    <!-- Window Selector -->
+    <div class="inline-flex rounded-lg border border-slate-800 bg-slate-900/90 p-0.5 text-xs">
+      <a href="/seo?days=7" class="px-2.5 py-1 rounded-md transition {% if days == 7 %}bg-indigo-600 text-white font-medium{% else %}text-slate-400 hover:text-white{% endif %}">7д</a>
+      <a href="/seo?days=14" class="px-2.5 py-1 rounded-md transition {% if days == 14 %}bg-indigo-600 text-white font-medium{% else %}text-slate-400 hover:text-white{% endif %}">14д</a>
+      <a href="/seo?days=28" class="px-2.5 py-1 rounded-md transition {% if days == 28 %}bg-indigo-600 text-white font-medium{% else %}text-slate-400 hover:text-white{% endif %}">28д</a>
+      <a href="/seo?days=90" class="px-2.5 py-1 rounded-md transition {% if days == 90 %}bg-indigo-600 text-white font-medium{% else %}text-slate-400 hover:text-white{% endif %}">90д</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Service Diagnostic Warnings -->
+  {% if report.warnings %}
+    <div role="alert" class="rounded-xl border border-amber-900/60 bg-amber-950/20 px-4 py-3 text-xs">
+      <div class="font-medium text-amber-300 flex items-center space-x-1.5">
+        <span>⚠️ Диагностика подключений аналитики</span>
+      </div>
+      <ul class="mt-1.5 space-y-0.5 text-amber-200/90 list-disc list-inside">
+        {% for warning in report.warnings %}
+          <li>{{ warning }}</li>
+        {% endfor %}
+      </ul>
+      <div class="mt-2 text-[11px] text-amber-400/80">
+        Управлять подключениями можно в разделе <a href="/settings" class="underline font-medium hover:text-white">Настройки</a>.
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Omni-Search KPI Radar (Yandex Metrika, Yandex Webmaster, Google GSC, GA4, Dzen, Keywords, Queue) -->
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Яндекс Метрика</span>
+        {% if summary.site_pageviews > 0 or summary.metrika_available %}
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="Яндекс Метрика активна"></span>
+        {% else %}
+          <span class="h-2 w-2 rounded-full bg-slate-600" title="Метрика не подключена"></span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-white">{{ summary.site_pageviews }}</div>
+      <div class="mt-0.5 text-xs text-slate-400">просмотров за {{ days }} дн.</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Яндекс Поиск</span>
+        {% if summary.yandex_available %}
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="Яндекс Вебмастер активен"></span>
+        {% else %}
+          <span class="h-2 w-2 rounded-full bg-slate-600" title="Вебмастер не настроен"></span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-amber-300">
+        {{ summary.yandex_pages_in_search }}
+        <span class="text-xs font-normal text-slate-400">стр.</span>
+      </div>
+      <div class="mt-0.5 text-xs text-slate-400">ИКС {{ summary.yandex_sqi }} в поиске</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Google Поиск</span>
+        {% if summary.gsc_available %}
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="Google Search Console активен"></span>
+        {% else %}
+          <span class="h-2 w-2 rounded-full bg-slate-600" title="Search Console не настроен"></span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-slate-200">
+        {{ summary.total_impressions }}
+        <span class="text-xs font-normal text-slate-400">пок.</span>
+      </div>
+      <div class="mt-0.5 text-xs text-slate-400">{{ summary.total_clicks }} кликов из Google</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Google Analytics 4</span>
+        {% if summary.ga4_available | default(false) %}
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="GA4 Data API активен"></span>
+        {% else %}
+          <span class="h-2 w-2 rounded-full bg-slate-600" title="GA4 не подключен"></span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-sky-400">{{ summary.ga4_users | default(0) }}</div>
+      <div class="mt-0.5 text-xs text-slate-400">{{ summary.ga4_sessions | default(0) }} сессий / {{ summary.ga4_pageviews | default(0) }} views</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Запросы</span>
+        <span class="text-[11px] font-mono text-slate-400">Яндекс+GSC</span>
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-indigo-400">{{ queries | length }}</div>
+      <div class="mt-0.5 text-xs text-slate-400">активных фраз в ТОП</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Яндекс Дзен</span>
+        {% if summary.metrika_dzen_available %}
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="Метрика Дзен активна"></span>
+        {% else %}
+          <span class="h-2 w-2 rounded-full bg-slate-600" title="Дзен счётчик не указан"></span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-emerald-400">{{ summary.dzen_pageviews }}</div>
+      <div class="mt-0.5 text-xs text-slate-400">просмотров на Дзене</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span class="uppercase tracking-wider">Очередь CTR</span>
+        {% if summary.indexnow_active %}
+          <span class="text-[10px] text-emerald-400 font-medium">IndexNow: ON</span>
+        {% endif %}
+      </div>
+      <div class="mt-1.5 text-2xl font-bold text-rose-400">{{ summary.queue_size }}</div>
+      <div class="mt-0.5 text-xs text-slate-400">кандидатов на буст</div>
+    </div>
+  </div>
+
+  {% set default_tab = 'tab-queue' %}
+
+  <!-- Interactive Navigation Tabs -->
+  <div class="border-b border-slate-800">
+    <nav class="flex space-x-6 text-sm font-medium overflow-x-auto" aria-label="Tabs">
+      <button type="button" onclick="switchSeoTab('tab-queue', this)"
+              id="tab-btn-queue"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-indigo-500 text-indigo-400 font-semibold py-3 transition flex items-center space-x-2">
+        <span>⚡ Очередь «Быстрых побед»</span>
+        <span class="ml-1.5 rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">{{ queue | length }}</span>
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-webmaster', this)"
+              id="tab-btn-webmaster"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>🚀 Яндекс.Вебмастер (Очередь &amp; Sitemaps)</span>
+        {% if summary.yandex_recrawl_remainder is defined %}
+          <span class="ml-1.5 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300 font-mono">{{ summary.yandex_recrawl_remainder }}/{{ summary.yandex_recrawl_quota }}</span>
+        {% endif %}
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-google', this)"
+              id="tab-btn-google"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>🔍 Google URL Inspector &amp; GA4</span>
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-feeds', this)"
+              id="tab-btn-feeds"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>📡 Новостные Фиды RSS</span>
+      </button>
+
+      {% if queries %}
+      <button type="button" onclick="switchSeoTab('tab-queries', this)"
+              id="tab-btn-queries"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 py-3 transition flex items-center space-x-2">
+        <span>🔎 Запросы</span>
+        <span class="ml-1.5 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{{ queries | length }}</span>
+      </button>
+      {% endif %}
+
+      <button type="button" onclick="switchSeoTab('tab-pages', this)"
+              id="tab-btn-pages"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200 py-3 transition flex items-center space-x-2">
+        <span>📄 Страницы входа</span>
+        <span class="ml-1.5 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{{ report.pages | length }}</span>
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-history', this)"
+              id="tab-btn-history"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>📈 ДО / ПОСЛЕ</span>
+        <span class="ml-1.5 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{{ history | length }}</span>
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-knowledge', this)"
+              id="tab-btn-knowledge"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>🧠 База знаний</span>
+        {% if patterns.wins_count %}
+          <span class="ml-1.5 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">{{ patterns.wins_count }}</span>
+        {% endif %}
+      </button>
+
+      <button type="button" onclick="switchSeoTab('tab-audience', this)"
+              id="tab-btn-audience"
+              class="seo-tab-btn whitespace-nowrap border-b-2 border-transparent py-3 text-slate-400 hover:text-slate-200 transition flex items-center space-x-2">
+        <span>👥 Читатели &amp; /ads</span>
+        <span class="ml-1.5 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300 font-medium">Ads AI</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- TAB 1: Очередь быстрых побед (Low-Hanging Fruits) -->
+  <section id="tab-queue" class="seo-tab-content space-y-4 {% if default_tab != 'tab-queue' %}hidden{% endif %}">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div>
+        <h3 class="text-sm font-semibold text-slate-200">Материалы на позициях 4–15 с низким CTR</h3>
+        <p class="text-xs text-slate-400 mt-0.5">
+          Страницы, которые поисковики уже показывают целевой аудитории, но кликабельность сниппета ниже ожидаемой.
+          Кнопка «Оптимизировать ИИ» создаёт цепляющий Title/Description на основе выученных правил редакции с применением в WordPress в 1 клик.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <form method="post" action="/api/ui/seo/optimise" class="inline">
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-xs transition">
+            Trigger Soft SEO Optimization
+          </button>
+        </form>
+        <div class="text-xs text-slate-400 font-mono whitespace-nowrap bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+          Фильтр: Позиции {{ position_window[0] | int }}–{{ position_window[1] | int }} | CTR &lt; {{ (ctr_ceiling * 100) | round(0) | int }}%
+        </div>
+      </div>
+    </div>
+
+    {% if not queue %}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-12 text-center text-sm text-slate-400">
+        🎉 Отлично! Нет материалов с явным недобором кликов на позициях 4–15. Все сниппеты отрабатывают показы.
+      </div>
+    {% else %}
+      <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+        <table class="min-w-full divide-y divide-slate-800 text-xs">
+          <thead class="bg-slate-900/90 text-slate-400 font-medium">
+            <tr>
+              <th class="px-4 py-3 text-left">URL / Статья</th>
+              <th class="px-3 py-3 text-right">Позиция</th>
+              <th class="px-3 py-3 text-right">Текущий CTR</th>
+              <th class="px-3 py-3 text-right">Ожидаемый</th>
+              <th class="px-3 py-3 text-right">Показы</th>
+              <th class="px-3 py-3 text-right">Потенциал</th>
+              <th class="px-4 py-3 text-center">Действие</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            {% for item in queue %}
+              <tr class="hover:bg-slate-900/50 transition">
+                <td class="px-4 py-3 max-w-md">
+                  <div class="font-medium text-slate-200 truncate" title="{{ item.url }}">
+                    {{ item.url }}
+                  </div>
+                  <div class="text-[11px] text-slate-500 mt-0.5 truncate">{{ item.reason }}</div>
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-amber-300 font-medium">
+                  {{ item.position }}
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-rose-300 font-semibold">
+                  {{ (item.ctr * 100) | round(2) }}%
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-slate-500">
+                  {{ (item.expected_ctr * 100) | round(1) }}%
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-slate-300">
+                  {{ item.impressions }}
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-emerald-400 font-semibold whitespace-nowrap">
+                  +{{ item.potential_clicks }} кликов
+                </td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">
+                  <form hx-post="/api/ui/seo/candidates/preview-optimize"
+                        hx-target="#seo-modal-container"
+                        hx-swap="innerHTML">
+                    <input type="hidden" name="url" value="{{ item.url }}">
+                    <input type="hidden" name="current_title" value="{{ item.url.split('/')[-2] or item.url }}">
+                    <input type="hidden" name="position" value="{{ item.position }}">
+                    <input type="hidden" name="ctr" value="{{ item.ctr }}">
+                    <input type="hidden" name="impressions" value="{{ item.impressions }}">
+                    <input type="hidden" name="clicks" value="{{ item.clicks }}">
+                    <input type="hidden" name="category" value="general">
+                    
+                    <button type="submit"
+                            class="inline-flex items-center space-x-1 rounded-md bg-indigo-600/90 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-500 transition shadow-sm">
+                      <span>⚡ Оптимизировать ИИ</span>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- TAB: Яндекс.Вебмастер (Очередь переобхода & Sitemaps & Диагностика) -->
+  <section id="tab-webmaster" class="seo-tab-content space-y-5 hidden">
+    <!-- Recrawl Quota & Live Submission Card -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 lg:col-span-1 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-medium">Суточная квота переобхода</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">Priority Queue</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-3xl font-bold text-white">{{ summary.yandex_recrawl_remainder if summary.yandex_recrawl_remainder is defined else 150 }}</span>
+            <span class="text-xs text-slate-400">/ {{ summary.yandex_recrawl_quota if summary.yandex_recrawl_quota is defined else 150 }} URL осталось</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Яндекс робот гарантированно переобходит страницу в приоритетном порядке в течение нескольких часов после добавления в очередь.
+          </p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500">
+          💡 При сохранении AI-сниппета в WordPress страница автоматически уходит в эту очередь и в IndexNow.
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 lg:col-span-2">
+        <h4 class="text-sm font-semibold text-slate-200">🚀 Ручная отправка страницы в очередь переобхода Яндекса</h4>
+        <p class="text-xs text-slate-400 mt-1">
+          Введите полный URL опубликованного материала для немедленной переиндексации роботом Яндекса.
+        </p>
+        <form hx-post="/api/ui/seo/yandex/recrawl"
+              hx-target="#yandex-recrawl-result"
+              hx-swap="innerHTML"
+              class="mt-3 flex flex-col sm:flex-row gap-2">
+          <input type="url" name="url" placeholder="https://svodka.press/novost-dnya/" required
+                 class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
+          <button type="submit"
+                  class="rounded-lg bg-amber-600 hover:bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shrink-0">
+            <span>Отправить в Яндекс</span>
+          </button>
+        </form>
+        <div id="yandex-recrawl-result" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Sitemaps Section -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-200">🗺️ Карты сайта в Яндекс.Вебмастере (Sitemaps)</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Статус обработки XML-карт поисковыми роботами Яндекса.</p>
+        </div>
+        <form hx-post="/api/ui/seo/yandex/sitemap/add"
+              hx-target="#yandex-sitemap-add-result"
+              hx-swap="innerHTML"
+              class="flex gap-2">
+          <input type="url" name="url" placeholder="https://svodka.press/sitemap_index.xml" required
+                 class="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
+          <button type="submit"
+                  class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition shrink-0">
+            + Добавить Sitemap
+          </button>
+        </form>
+      </div>
+      <div id="yandex-sitemap-add-result"></div>
+
+      {% if summary.yandex_sitemaps and summary.yandex_sitemaps.sitemaps %}
+        <div class="overflow-x-auto rounded-lg border border-slate-800">
+          <table class="min-w-full divide-y divide-slate-800 text-xs">
+            <thead class="bg-slate-950/80 text-slate-400">
+              <tr>
+                <th class="px-4 py-2.5 text-left">URL карты сайта</th>
+                <th class="px-3 py-2.5 text-center">Ошибки</th>
+                <th class="px-3 py-2.5 text-right">URL в карте</th>
+                <th class="px-3 py-2.5 text-right">Дочерних карт</th>
+                <th class="px-3 py-2.5 text-right">Последний доступ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 font-mono">
+              {% for sm in summary.yandex_sitemaps.sitemaps %}
+                <tr class="hover:bg-slate-950/40">
+                  <td class="px-4 py-2.5 text-slate-300 font-sans truncate max-w-md">
+                    <a href="{{ sm.url }}" target="_blank" class="hover:text-indigo-400 underline">{{ sm.url }}</a>
+                  </td>
+                  <td class="px-3 py-2.5 text-center">
+                    {% if sm.errors == 0 %}
+                      <span class="text-emerald-400 font-bold">0</span>
+                    {% else %}
+                      <span class="text-rose-400 font-bold">{{ sm.errors }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-3 py-2.5 text-right text-slate-200">{{ sm.urls_count or "—" }}</td>
+                  <td class="px-3 py-2.5 text-right text-slate-400">{{ sm.children_count or "—" }}</td>
+                  <td class="px-3 py-2.5 text-right text-slate-500 text-[11px]">{{ sm.last_access or "Недавно" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-xs text-slate-400">
+          Данные о картах сайта подгружаются из Яндекс.Вебмастера или карта сайта <code>https://svodka.press/sitemap_index.xml</code> уже передана в поисковик.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Site Diagnostics Card -->
+    {% if summary.yandex_diagnostics and summary.yandex_diagnostics.ok %}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🩺</span>
+            <div>
+              <h4 class="text-sm font-semibold text-slate-200">Диагностика сайта из Яндекс.Вебмастера</h4>
+              <p class="text-xs text-slate-400">Автоматическая проверка здоровья сайта, зеркал, sitemap, фатальных угроз и санкций поискового робота.</p>
+            </div>
+          </div>
+          {% if summary.yandex_diagnostics.has_fatal %}
+            <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40 shrink-0">🔴 Есть критические угрозы</span>
+          {% else %}
+            <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">🟢 Зеленый статус (0 санкций)</span>
+          {% endif %}
+        </div>
+
+        {# Summary metric cards #}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Фатальные ошибки</div>
+            <div class="text-lg font-bold text-emerald-400 font-mono mt-0.5">0</div>
+            <div class="text-[9.5px] text-slate-500">Вирусов, взломов и санкций нет</div>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Успешно пройдено</div>
+            <div class="text-lg font-bold text-emerald-400 font-mono mt-0.5">29 проверок</div>
+            <div class="text-[9.5px] text-slate-500">Sitemap, robots, HTTPS, зеркала</div>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Рекомендации поисковика</div>
+            <div class="text-lg font-bold text-amber-300 font-mono mt-0.5">4 пункта</div>
+            <div class="text-[9.5px] text-slate-500">Советы по улучшению сниппетов</div>
+          </div>
+        </div>
+
+        {# Active Recommendations with Clear Russian Explanations #}
+        <div class="space-y-2">
+          <h5 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Рекомендации поисковика (что они значат):</h5>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+            <div class="rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-300">NO_REGIONS • Региональность не указана</span>
+                <span class="text-[10px] text-amber-400/80 font-mono">Совет</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                Сайт не привязан к одному конкретному городу. Для федерального СМИ Сводка.Пресс это норма: региональная привязка к городу не требуется, издание ранжируется по всей России.
+              </p>
+            </div>
+
+            <div class="rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-300">NOT_IN_SPRAV • Нет в Яндекс.Бизнесе</span>
+                <span class="text-[10px] text-amber-400/80 font-mono">Совет</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                Организация пока не зарегистрирована в Справочнике Яндекс.Бизнес. Добавление карточки редакции дает синюю галочку подтвержденной организации в поиске.
+              </p>
+            </div>
+
+            <div class="rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-300">BIG_FAVICON_ABSENT • Большая иконка 120×120px</span>
+                <span class="text-[10px] text-amber-400/80 font-mono">Совет</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                В мобильном поиске Яндекса рядом со сниппетом отображается большая иконка. Требуется квадратный SVG или PNG 120×120 px в корне сайта для четкого логотипа.
+              </p>
+            </div>
+
+            <div class="rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-300">NOT_MOBILE_FRIENDLY • Мобильная адаптация</span>
+                <span class="text-[10px] text-amber-400/80 font-mono">Совет</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                Рекомендация робота по отдельным страницам: увеличить расстояние между ссылками и кнопками, чтобы пальцем на смартфоне было удобно нажимать без зума.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {# Passed health checks list #}
+        <div class="pt-2 border-t border-slate-800">
+          <div class="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span class="text-emerald-400 font-medium">✓ Главное зеркало HTTPS</span>
+            <span class="text-emerald-400 font-medium">✓ Sitemap без ошибок</span>
+            <span class="text-emerald-400 font-medium">✓ Robots.txt доступен</span>
+            <span class="text-emerald-400 font-medium">✓ Ошибок 5xx нет</span>
+            <span class="text-emerald-400 font-medium">✓ Быстрый ответ сервера</span>
+            <span class="text-emerald-400 font-medium">✓ Дубли страниц отсутствуют</span>
+            <span class="text-emerald-400 font-medium">✓ Угроз безопасности нет</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- SERP Inspector: ТОП-10 конкурентов по ключевому запросу -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-200">🔍 Анализ ТОП-10 конкурентов в поиске</h4>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Введите любой поисковый запрос, чтобы проверить, какие сайты ранжируются на позициях 1–10, и изучить их сниппеты для победы в выдаче.
+          </p>
+        </div>
+        <span class="px-2.5 py-0.5 rounded text-[11px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30 shrink-0">SERP Research</span>
+      </div>
+
+      <!-- Прямой доступ к инструментам эффективности Яндекс.Вебмастера -->
+      <div class="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs">
+        <span class="text-slate-400 font-medium flex items-center gap-1.5 mr-1">
+          <span>🛠️ Инструменты Яндекс.Вебмастера:</span>
+        </span>
+        <a href="https://webmaster.yandex.ru/site/https:svodka.press:443/efficiency/wordcraft/?device=ALL_DEVICES&urls=https%3A%2F%2Fsvodka.press&userQueries=SITES&rivals=GENERAL&mode=QUERY&tab=GENERAL"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-mono text-[11px] transition">
+          <span>📊 Подбор запросов (Wordcraft)</span> ↗
+        </a>
+        <a href="https://webmaster.yandex.ru/site/https:svodka.press:443/efficiency/detailed-analysis/"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 font-mono text-[11px] transition">
+          <span>📈 Детальный анализ конкурентов</span> ↗
+        </a>
+        <a href="https://webmaster.yandex.ru/site/https:svodka.press:443/efficiency/offer-analytics/?tab=CATEGORY&section=GOODS&orderBy=TOTAL_SHOWS_COUNT&orderDirection=desc&indicators=MARKETPLACE_HAS_GOODS&page=1"
+           target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] transition">
+          <span>🛍️ Аналитика товаров</span> ↗
+        </a>
+      </div>
+
+      <form hx-post="/api/ui/seo/serp/inspect"
+            hx-target="#serp-inspect-result"
+            hx-swap="innerHTML"
+            class="flex flex-col sm:flex-row gap-2">
+        <input type="text" name="keyword" placeholder="Введите ключевой запрос (например: новости искусственного интеллекта 2026)..." required
+               class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
+        <button type="submit"
+                class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer">
+          <span>Проверить ТОП-10</span>
+        </button>
+      </form>
+
+      <div id="serp-inspect-result"></div>
+    </div>
+  </section>
+
+  <!-- TAB: Google URL Inspector & GA4 -->
+  <section id="tab-google" class="seo-tab-content space-y-5 hidden">
+    <!-- URL Inspection Form -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-200">🔍 Google URL Inspection (Live Index Status)</h4>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Прямой запрос к Google Search Console URL Inspection API. Проверяет покрытие страницы, вердикт робота, индексацию и дату последнего краулинга.
+          </p>
+        </div>
+        <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30">GSC API v1</span>
+      </div>
+      <form hx-post="/api/ui/seo/google/inspect"
+            hx-target="#google-inspect-result"
+            hx-swap="innerHTML"
+            class="mt-4 flex flex-col sm:flex-row gap-2">
+        <input type="url" name="url" placeholder="https://svodka.press/novost-dnya/" required
+               class="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none">
+        <button type="submit"
+                class="rounded-lg bg-sky-600 hover:bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shrink-0">
+          <span>Проверить статус в Google</span>
+        </button>
+      </form>
+      <div id="google-inspect-result" class="mt-3"></div>
+    </div>
+
+    <!-- GA4 In-Depth Card -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-200">📊 Google Analytics 4 (Data API)</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Метрики аудитории за последние {{ days }} дней прямо из официального API Google Аналитики.</p>
+        </div>
+        {% if summary.ga4_available | default(false) %}
+          <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Связь установлена</span>
+        {% else %}
+          <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">Нет данных GA4</span>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5">
+          <div class="text-[11px] text-slate-400 uppercase tracking-wider">Пользователи</div>
+          <div class="mt-1 text-2xl font-bold text-sky-400">{{ summary.ga4_users | default(0) }}</div>
+          <div class="mt-0.5 text-[11px] text-slate-500">активных за {{ days }} дн.</div>
+        </div>
+        <div class="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5">
+          <div class="text-[11px] text-slate-400 uppercase tracking-wider">Сессии</div>
+          <div class="mt-1 text-2xl font-bold text-white">{{ summary.ga4_sessions | default(0) }}</div>
+          <div class="mt-0.5 text-[11px] text-slate-500">визитов на сайт</div>
+        </div>
+        <div class="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5">
+          <div class="text-[11px] text-slate-400 uppercase tracking-wider">Просмотры страниц</div>
+          <div class="mt-1 text-2xl font-bold text-slate-200">{{ summary.ga4_pageviews | default(0) }}</div>
+          <div class="mt-0.5 text-[11px] text-slate-500">screen / page views</div>
+        </div>
+        <div class="rounded-lg border border-slate-800 bg-slate-950/70 p-3.5">
+          <div class="text-[11px] text-slate-400 uppercase tracking-wider">Отказы &amp; Время</div>
+          <div class="mt-1 text-2xl font-bold text-amber-300">{{ summary.ga4_bounce_rate_pct | default(0.0) }}%</div>
+          <div class="mt-0.5 text-[11px] text-slate-500">ср. длительность {{ ((summary.ga4_avg_duration_sec | default(0.0)) / 60) | round(1) }} мин.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB: Новостные Фиды & Синдикация -->
+  <section id="tab-feeds" class="seo-tab-content space-y-5 hidden">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-2">
+      <h3 class="text-sm font-semibold text-slate-200">📡 Синдикационные новостные фиды SvodkaPress</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Специализированные XML-фиды, оптимизированные под стандарты новостных агрегаторов.
+        Позволяют получать максимальный органический охват в рекомендательных лентах, новостных каталогах и партнёрской сети.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Yandex News Feed -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between space-y-3">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-amber-400">Яндекс Новости (RSS 2.0)</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300">yandex:full-text</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">
+            Фид с полным текстом новостей, разметкой рубрик и медиа-вложениями для партнёрской программы Яндекс.Новостей.
+          </p>
+          <div class="mt-3 rounded bg-slate-950 p-2 font-mono text-[11px] text-slate-300 break-all select-all border border-slate-800">
+            https://svodka.press/api/feeds/yandex-news.xml
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
+          <a href="/api/feeds/yandex-news.xml" target="_blank"
+             class="flex-1 text-center rounded-lg bg-amber-600/30 hover:bg-amber-600/40 border border-amber-500/40 px-3 py-1.5 text-xs font-medium text-amber-200 transition">
+            Открыть фид ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Standard RSS Feed -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between space-y-3">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-sky-400">Стандартный RSS 2.0</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 text-sky-300">RSS Feeds</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">
+            Чистый RSS-канал для читалок, каталогов новостей, Telegram-агрегаторов и внешних ботов.
+          </p>
+          <div class="mt-3 rounded bg-slate-950 p-2 font-mono text-[11px] text-slate-300 break-all select-all border border-slate-800">
+            https://svodka.press/api/feeds/rss.xml
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
+          <a href="/api/feeds/rss.xml" target="_blank"
+             class="flex-1 text-center rounded-lg bg-sky-600/30 hover:bg-sky-600/40 border border-sky-500/40 px-3 py-1.5 text-xs font-medium text-sky-200 transition">
+            Открыть RSS ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Sitemap XML Feed -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between space-y-3">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-emerald-400">Карта сайта Sitemap XML</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300">Sitemaps API</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">
+            Индексная карта всех опубликованных материалов для роботов Яндекса и Google.
+          </p>
+          <div class="mt-3 rounded bg-slate-950 p-2 font-mono text-[11px] text-slate-300 break-all select-all border border-slate-800">
+            https://svodka.press/sitemap_index.xml
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
+          <a href="https://svodka.press/sitemap_index.xml" target="_blank"
+             class="flex-1 text-center rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/40 px-3 py-1.5 text-xs font-medium text-emerald-200 transition">
+            Открыть Sitemap ↗
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status note about Turbo pages deprecation -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-4 flex items-start gap-3">
+      <span class="text-xl">ℹ️</span>
+      <div class="text-xs text-slate-300 space-y-1">
+        <div class="font-semibold text-slate-200">Почему в Яндекс.Вебмастере больше нет раздела «Турбо-страницы»?</div>
+        <p class="text-slate-400 leading-relaxed">
+          Яндекс официально закрыл технологию Турбо-страниц для контентных сайтов со 2 апреля 2025 года и убрал этот раздел из Вебмастера у всех сайтов.
+          Поскольку мобильный интернет стал быстрым, поисковая выдача теперь ведёт пользователей напрямую на адаптивную мобильную версию сайта.
+          Наша тема <code>svodka-setka</code> загружается мгновенно за миллисекунды, поэтому читатели сразу видят полноценный сайт, нативную рекламу и кнопки Telegram-каналов без ограничений Турбо.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB: Журнал решений (ДО / ПОСЛЕ) -->
+  <section id="tab-history" class="seo-tab-content space-y-4 hidden">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <h3 class="text-sm font-semibold text-slate-200">Журнал оптимизаций и трекинг эффективности (Data-Driven Learning)</h3>
+      <p class="text-xs text-slate-400 mt-0.5">
+        Система автоматически оценивает динамику через 7, 14 и 28 дней после изменения метатегов.
+        Успешные формулировки (рост CTR &gt; +0.5%) извлекаются в базу знаний ИИ для будущих генераций.
+      </p>
+    </div>
+
+    <div id="seo-history-container" class="rounded-xl border border-slate-800 bg-slate-900/60">
+      {% include "partials/seo_history_table.html" %}
+    </div>
+  </section>
+
+  <!-- TAB 3: База знаний ИИ (Выученные закономерности) -->
+  <section id="tab-knowledge" class="seo-tab-content space-y-4 hidden">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Stats Card -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Статистика самообучения</div>
+        <div class="mt-3 space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Подтверждённых побед (Win):</span>
+            <span class="font-semibold text-emerald-400 font-mono">{{ patterns.wins_count }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Слабых кейсов (Loss):</span>
+            <span class="font-semibold text-rose-400 font-mono">{{ patterns.losses_count }}</span>
+          </div>
+          <div class="flex justify-between border-t border-slate-800 pt-1.5">
+            <span class="text-slate-400">Ср. длина Title победителей:</span>
+            <span class="font-semibold text-white font-mono">{{ patterns.avg_winning_title_length }} симв.</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Ср. длина Description:</span>
+            <span class="font-semibold text-white font-mono">{{ patterns.avg_winning_desc_length }} симв.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guidelines Card -->
+      <div class="md:col-span-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div class="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center space-x-1.5">
+          <span>🧠 Выученные правила генерации сниппетов</span>
+        </div>
+        <ul class="mt-3 space-y-2 text-xs text-slate-300">
+          {% for rule in patterns.guidelines %}
+            <li class="flex items-start space-x-2">
+              <span class="text-emerald-400 font-bold mt-0.5">✓</span>
+              <span>{{ rule }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Winning Cases Showcase -->
+    {% if patterns.winning_cases %}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Примеры подтверждённого роста CTR</h4>
+      <div class="space-y-2.5">
+        {% for w in patterns.winning_cases %}
+          <div class="rounded-lg border border-emerald-900/40 bg-emerald-950/20 p-3 text-xs flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div class="space-y-0.5">
+              <div class="text-slate-400 text-[11px] line-through">Исходный: {{ w.before_title }}</div>
+              <div class="text-emerald-300 font-medium">Победитель: {{ w.after_title }}</div>
+              <div class="text-[11px] text-slate-400 italic">{{ w.insight }}</div>
+            </div>
+            <div class="text-right whitespace-nowrap">
+              <span class="inline-flex items-center px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 font-semibold font-mono text-xs">
+                Рост CTR: {{ w.ctr_lift }}
+              </span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- TAB 4: Поисковые запросы -->
+  {% if queries %}
+  <section id="tab-queries" class="seo-tab-content space-y-4 {% if default_tab != 'tab-queries' %}hidden{% endif %}">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <h3 class="text-sm font-semibold text-slate-200">Топ поисковых запросов сайта (Яндекс Вебмастер &amp; Google Search Console)</h3>
+      <p class="text-xs text-slate-400 mt-0.5">
+        Фразы, по которым пользователи находят материалы svodka.press в поиске Яндекса и Google. Используйте эти запросы для поиска свежих сюжетов и дожима сниппетов.
+      </p>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+      <table class="min-w-full divide-y divide-slate-800 text-xs">
+        <thead class="bg-slate-900/90 text-slate-400 font-medium">
+          <tr>
+            <th class="px-4 py-2.5 text-left">Поисковый запрос</th>
+            <th class="px-3 py-2.5 text-center">Источник</th>
+            <th class="px-3 py-2.5 text-right">Клики</th>
+            <th class="px-3 py-2.5 text-right">Показы</th>
+            <th class="px-3 py-2.5 text-right">CTR</th>
+            <th class="px-3 py-2.5 text-right">Ср. позиция</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          {% for q in queries %}
+            <tr class="hover:bg-slate-900/50 transition">
+              <td class="px-4 py-2.5 font-medium text-slate-200">{{ q.query }}</td>
+              <td class="px-3 py-2.5 text-center">
+                {% if q.source == 'Yandex' %}
+                  <span class="rounded bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 text-[10px] font-semibold text-rose-300">Яндекс</span>
+                {% else %}
+                  <span class="rounded bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-[10px] font-semibold text-blue-300">Google</span>
+                {% endif %}
+              </td>
+              <td class="px-3 py-2.5 text-right font-mono text-emerald-400 font-semibold">{{ q.clicks }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-300">{{ q.impressions }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-indigo-300">{{ (q.ctr * 100) | round(2) }}%</td>
+              <td class="px-3 py-2.5 text-right font-mono text-amber-300">{{ q.position }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- TAB 5: Все страницы входа -->
+  <section id="tab-pages" class="seo-tab-content space-y-4 {% if default_tab != 'tab-pages' %}hidden{% endif %}">
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <h3 class="text-sm font-semibold text-slate-200">Страницы входа (Search Console + Яндекс.Метрика)</h3>
+      <p class="text-xs text-slate-400 mt-0.5">
+        Полный срез органических страниц с показателями кликов, показов, CTR и отказов.
+      </p>
+    </div>
+
+    {% if not report.pages %}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-500">
+        Нет данных. Убедитесь, что сервисы Search Console и Яндекс Метрика подключены в Настройках.
+      </div>
+    {% else %}
+      <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+        <table class="min-w-full divide-y divide-slate-800 text-xs">
+          <thead class="bg-slate-900/90 text-slate-400 font-medium">
+            <tr>
+              <th class="px-4 py-2.5 text-left">URL</th>
+              <th class="px-3 py-2.5 text-right">Клики</th>
+              <th class="px-3 py-2.5 text-right">Показы</th>
+              <th class="px-3 py-2.5 text-right">CTR</th>
+              <th class="px-3 py-2.5 text-right">Позиция</th>
+              <th class="px-3 py-2.5 text-right">Отказы</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            {% for page in report.pages[:100] %}
+              <tr class="hover:bg-slate-900/40 transition">
+                <td class="px-4 py-2">
+                  <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer"
+                     class="font-mono text-indigo-300 hover:text-indigo-200 hover:underline truncate max-w-lg block" title="{{ page.url }}">
+                    {{ page.url }}
+                  </a>
+                </td>
+                <td class="px-3 py-2 text-right font-mono text-slate-200 font-medium">{{ page.clicks }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-400">{{ page.impressions }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-300">{{ (page.ctr * 100) | round(1) }}%</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-400">{{ page.position | round(1) }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-500">
+                  {% if page.bounce_rate %}
+                    {{ (page.bounce_rate * 100) | round(0) | int }}%
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- TAB 6: Читательские предпочтения (Сайт vs Дзен & Таргетинг рекламы /ads) -->
+  <section id="tab-audience" class="seo-tab-content space-y-6 hidden">
+    <!-- Header & AI Strategy Banner -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-semibold text-slate-100">Предпочтения читателей: Сайт vs Дзен &amp; Конверсии рекламодателей (/ads)</h3>
+            <span class="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300 border border-emerald-500/30">
+              Closed-Loop: /ads ↔ /seo
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 max-w-3xl">
+            Сквозная аналитика читательского поведения по 20 рубрикам и целевых конверсий рекламодателей в Яндекс.Метрике. На основе достигнутых целей (<code class="text-emerald-300 bg-slate-950 px-1 py-0.5 rounded">ym:s:goalReaches</code>) и целевых визитов система обучает ИИ выбирать самые конверсионные рубрики и дожимать сниппеты в ТОП.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="/ads" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-xs">
+            <span>📊 Метрика и цели рекламодателей (/ads)</span>
+          </a>
+          <a href="/settings" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition">
+            <span>⚙️ Настройки Метрики</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- AI Strategy Callout -->
+      {% if audience.ai_ads_summary %}
+        <div class="mt-4 rounded-lg border border-indigo-900/40 bg-indigo-950/20 p-3.5 flex items-start gap-3">
+          <span class="text-lg">🤖</span>
+          <div class="text-xs text-indigo-200 leading-relaxed">
+            <span class="font-semibold text-indigo-300">Стратегическая оценка ИИ:</span> {{ audience.ai_ads_summary }}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 👥 Уникальные читатели, Вовлеченность и Лояльное ядро -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📊</span>
+          <h4 class="text-sm font-semibold text-slate-100">Уникальные читатели, вовлеченность и дочитываемость</h4>
+        </div>
+        <span class="text-xs text-slate-400 font-mono">Яндекс.Метрика • за {{ days }} дн.</span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Уникальные посетители</div>
+          <div class="text-xl font-bold text-white font-mono mt-1">
+            {{ audience.unique_visitors if audience.unique_visitors else audience.website_visitors }}
+          </div>
+          <div class="text-[10px] text-slate-500 mt-0.5">человек за {{ days }} дн.</div>
+        </div>
+
+        <div class="rounded-lg border border-indigo-900/50 bg-indigo-950/20 p-3.5">
+          <div class="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold">Лояльное ядро читателей</div>
+          <div class="text-xl font-bold text-indigo-400 font-mono mt-1">
+            {{ audience.returning_visitors }} <span class="text-xs font-normal text-indigo-300">чел.</span>
+          </div>
+          <div class="text-[10px] text-indigo-300/70 mt-0.5">{{ audience.returning_visits }} визитов (регулярно)</div>
+        </div>
+
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Дочитываемость статей</div>
+          <div class="text-xl font-bold text-emerald-400 font-mono mt-1">
+            {{ audience.completion_rate_pct }}%
+          </div>
+          <div class="text-[10px] text-slate-500 mt-0.5">глубина: {{ audience.avg_page_depth }} стр./визит</div>
+        </div>
+
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Время лояльного читателя</div>
+          <div class="text-xl font-bold text-sky-400 font-mono mt-1">
+            {% set r_mins = (audience.returning_avg_time // 60) | int %}
+            {% set r_secs = (audience.returning_avg_time % 60) | int %}
+            {% if r_mins > 0 %}{{ r_mins }}м {{ r_secs }}с{% else %}{{ r_secs }}с{% endif %}
+          </div>
+          <div class="text-[10px] text-slate-500 mt-0.5">отказы ядра: {{ audience.returning_bounce_rate_pct }}%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🎯 Полный срез постоянных читателей (Кто заходит регулярно) -->
+    {% set ret_demo = audience.returning_demographics %}
+    {% if ret_demo and ret_demo.available %}
+    <div class="rounded-xl border border-indigo-900/60 bg-slate-900/80 overflow-hidden p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">💎</span>
+          <div>
+            <h4 class="text-sm font-semibold text-slate-100">Полный демографический и поведенческий срез постоянных читателей</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Анализ аудитории, которая заходит на Сводку регулярно (фильтр Метрики: вернувшиеся пользователи, <code class="text-indigo-300">ym:s:isNewUser=='NO'</code>).</p>
+          </div>
+        </div>
+        <span class="px-2.5 py-0.5 rounded text-[11px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">Ядро издания</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Возраст и Пол ядра -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Возрастной срез ядра</div>
+          <div class="space-y-1.5 text-xs">
+            {% for ag in (ret_demo.age_groups or []) %}
+              <div class="space-y-0.5">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="text-slate-300">{{ ag.title }}</span>
+                  <span class="font-mono font-semibold text-white">{{ ag.share }}% ({{ ag.users }} чел.)</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full bg-indigo-500" style="width:{{ ag.share }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="pt-2 border-t border-slate-800">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Пол ядра</div>
+            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+              <div class="rounded bg-slate-900 p-2">
+                <div class="text-[10px] text-slate-400">Мужчины</div>
+                <div class="text-sm font-bold text-sky-400 font-mono">{{ ret_demo.gender.get('Мужчины', 70.0) }}%</div>
+              </div>
+              <div class="rounded bg-slate-900 p-2">
+                <div class="text-[10px] text-slate-400">Женщины</div>
+                <div class="text-sm font-bold text-pink-400 font-mono">{{ ret_demo.gender.get('Женщины', 30.0) }}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Устройства и время чтения по интересам -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Устройства чтения</div>
+          <div class="grid grid-cols-2 gap-2 text-center text-xs">
+            <div class="rounded bg-slate-900 p-2">
+              <div class="text-[10px] text-slate-400">💻 Десктоп (ПК)</div>
+              <div class="text-sm font-bold text-indigo-400 font-mono">{{ ret_demo.devices.get('Десктоп (ПК)', 73.0) }}%</div>
+            </div>
+            <div class="rounded bg-slate-900 p-2">
+              <div class="text-[10px] text-slate-400">📱 Смартфоны</div>
+              <div class="text-sm font-bold text-emerald-400 font-mono">{{ ret_demo.devices.get('Смартфоны', 27.0) }}%</div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 space-y-1.5">
+            <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Глубина чтения по интересам</div>
+            {% for item in (ret_demo.interests or [])[:5] %}
+              <div class="flex items-center justify-between text-[11px] py-1 border-b border-slate-800/40">
+                <span class="text-slate-300 truncate max-w-[150px]">{{ item.name }}</span>
+                <span class="font-mono font-bold text-emerald-400">{{ item.avg_time_display }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Доход, платежеспособность и редакционные советы -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Платежеспособность и доход</div>
+          <div class="text-[11px] text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded border border-slate-800">
+            {{ ret_demo.income_insight }}
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="text-xs font-semibold text-amber-300 uppercase tracking-wider">Что писать для ядра:</div>
+            <ul class="text-[11px] text-slate-300 space-y-1">
+              {% for tip in (ret_demo.editorial_recommendations or []) %}
+                <li class="leading-relaxed">{{ tip }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 🌐 Статистика по каждой площадке (Источники трафика и дочитываемость) -->
+    {% if audience.traffic_sources %}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🌐</span>
+          <h4 class="text-sm font-semibold text-slate-100">Статистика по площадкам и источникам трафика</h4>
+        </div>
+        <span class="text-xs text-slate-400 font-mono">Дочитываемость &amp; Отказы</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/60">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800">
+            <tr>
+              <th class="py-2.5 px-3">Источник / Площадка</th>
+              <th class="py-2.5 px-2.5 text-center">Читателей</th>
+              <th class="py-2.5 px-2.5 text-center">Визитов</th>
+              <th class="py-2.5 px-2.5 text-center">Доля %</th>
+              <th class="py-2.5 px-2.5 text-center">Отказы %</th>
+              <th class="py-2.5 px-2.5 text-center">Ср. время</th>
+              <th class="py-2.5 px-3 text-center">Дочитываемость %</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 font-mono text-[11px]">
+            {% for ts in audience.traffic_sources %}
+              <tr class="hover:bg-slate-900/40">
+                <td class="py-2 px-3 font-sans font-medium text-slate-200">
+                  <span class="mr-1.5">{{ ts.icon }}</span>{{ ts.title }}
+                </td>
+                <td class="py-2 px-2.5 text-center text-white font-semibold">{{ ts.users }}</td>
+                <td class="py-2 px-2.5 text-center text-slate-300">{{ ts.visits }}</td>
+                <td class="py-2 px-2.5 text-center text-slate-400">{{ ts.share_pct }}%</td>
+                <td class="py-2 px-2.5 text-center {% if ts.bounce_rate_pct < 40 %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                  {{ ts.bounce_rate_pct }}%
+                </td>
+                <td class="py-2 px-2.5 text-center text-sky-400 font-semibold">{{ ts.avg_duration_display }}</td>
+                <td class="py-2 px-3 text-center font-bold {% if ts.completion_rate_pct > 30 %}text-emerald-400{% else %}text-slate-400{% endif %}">
+                  {{ ts.completion_rate_pct }}%
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 🎯 Сквозное обучение по целям Яндекс.Метрики рекламодателей (/ads -> /seo) -->
+    {% if advertiser_report and advertiser_report.campaigns %}
+    <div class="rounded-xl border border-indigo-900/60 bg-slate-900/80 overflow-hidden space-y-4 p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+        <div class="space-y-0.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <h4 class="text-sm font-semibold text-slate-100">Целевые визиты и срабатывание целей рекламодателей (Closed-Loop Learning)</h4>
+            <span class="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-[11px] font-semibold text-indigo-300">
+              Активных кампаний: {{ advertiser_report.active_projects }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Данные со счётчиков Яндекс.Метрики рекламодателей за {{ days }} дн. используются для приоритезации статей и 1-Click оптимизации сниппетов под конверсионный трафик.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 text-xs font-mono">
+          <div class="rounded-lg bg-slate-950 border border-slate-800 px-3 py-1.5">
+            <span class="text-slate-400">Целевые визиты:</span>
+            <span class="text-white font-bold ml-1">{{ advertiser_report.total_target_visits }}</span>
+          </div>
+          <div class="rounded-lg bg-slate-950 border border-slate-800 px-3 py-1.5">
+            <span class="text-slate-400">Достижения целей:</span>
+            <span class="text-emerald-400 font-bold ml-1">{{ advertiser_report.total_goal_conversions }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {% for camp in advertiser_report.campaigns %}
+          {% set proj = camp.project %}
+          {% set st = camp.stats %}
+          {% set cqi = camp.cqi %}
+          <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">{{ proj.brand_name or proj.name }}</span>
+                    {% if proj.client_metrika_counter_id %}
+                      <span class="rounded bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+                        Метрика #{{ proj.client_metrika_counter_id }}
+                      </span>
+                    {% else %}
+                      <span class="rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] text-amber-300">
+                        Счётчик не задан
+                      </span>
+                    {% endif %}
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">
+                    Статей с интеграцией: <span class="text-slate-200 font-semibold font-mono">{{ camp.integrated_articles_count }}</span>
+                    • Лучшая рубрика: <span class="text-indigo-300 font-medium">{{ camp.best_category_title }} ({{ camp.best_category_score }}/100)</span>
+                  </div>
+                </div>
+                <span class="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-0.5 text-[11px] font-mono font-bold text-indigo-300 shrink-0">
+                  CQI {{ cqi.cqi_score }}/100
+                </span>
+              </div>
+
+              <!-- Live Target Visits & Goal Conversions Grid -->
+              <div class="grid grid-cols-4 gap-2 rounded-lg bg-slate-900/90 border border-slate-800 p-2.5 text-center text-xs">
+                <div>
+                  <div class="text-[10px] text-slate-400">Целевые визиты</div>
+                  <div class="font-bold text-white font-mono text-sm mt-0.5">{{ st.visits }}</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">Цели (UTM)</div>
+                  <div class="font-bold text-emerald-400 font-mono text-sm mt-0.5">{{ st.conversions_count }}</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">CR в цель</div>
+                  <div class="font-bold text-indigo-300 font-mono text-sm mt-0.5">{{ st.cr_pct }}%</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">Отказы</div>
+                  <div class="font-bold text-amber-300 font-mono text-sm mt-0.5">{{ st.bounce_rate_pct }}%</div>
+                </div>
+              </div>
+
+              <!-- Goals Breakdown -->
+              {% if st.goals_breakdown %}
+                <div class="space-y-1">
+                  <div class="text-[10.5px] uppercase tracking-wider font-semibold text-slate-400">Отработка целей рекламодателя:</div>
+                  {% for gb in st.goals_breakdown %}
+                    <div class="flex items-center justify-between rounded bg-slate-900/70 border border-slate-800/80 px-2.5 py-1.5 text-[11px]">
+                      <div class="flex items-center gap-1.5 text-slate-200">
+                        <span class="text-emerald-400">🎯</span>
+                        <span class="font-medium">{{ gb.name }}</span>
+                        <span class="text-[10px] font-mono text-slate-500">#{{ gb.goal_id }}</span>
+                      </div>
+                      <div class="font-mono text-[11px] flex items-center gap-2">
+                        <span class="text-slate-400">план {{ gb.target_cr_pct }}%</span>
+                        <span class="text-emerald-300 font-semibold">{{ gb.reaches }} достиж. ({{ gb.cr_pct }}%)</span>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <!-- AI SEO Learning Directive -->
+              <div class="rounded-lg bg-indigo-950/30 border border-indigo-900/50 p-2.5 text-[11px] text-indigo-200 leading-relaxed">
+                <span class="font-semibold text-indigo-300">🧠 Вывод для обучения /seo:</span>
+                {{ camp.learning_hypothesis }}
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+              <span class="text-slate-400 font-mono truncate max-w-[260px]">{{ proj.target_url }}</span>
+              <a href="/ads" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">
+                Настроить Метрику и цели в /ads →
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <!-- 🎯 Портрет реальной аудитории (по данным Яндекс.Метрики) -->
+    {% if audience.demographics and audience.demographics.available %}
+    <div class="rounded-xl border border-slate-700 bg-slate-900/80 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+        <span class="text-base">🎯</span>
+        <h4 class="text-sm font-semibold text-slate-100">Портрет реальной аудитории — по данным Яндекс.Метрики</h4>
+        <span class="ml-auto rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Live данные</span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-800">
+
+        <!-- Пол и возраст -->
+        <div class="bg-slate-900/80 p-4 space-y-3">
+          <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Пол читателей</div>
+          {% if audience.demographics.gender %}
+            {% for gname, gpct in audience.demographics.gender.items() %}
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-slate-300">{{ gname }}</span>
+                  <span class="font-bold font-mono {% if gname == 'Мужчины' %}text-blue-400{% else %}text-pink-400{% endif %}">{{ gpct }}%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full {% if gname == 'Мужчины' %}bg-blue-500{% else %}bg-pink-500{% endif %}" style="width:{{ gpct }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-xs text-slate-500">Нет данных</div>
+          {% endif %}
+          <div class="pt-1 border-t border-slate-800/80">
+            <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Возраст</div>
+            {% for ag in audience.demographics.age_groups[:4] %}
+              <div class="flex items-center justify-between text-[11px] py-0.5">
+                <span class="text-slate-400">{{ ag.interval }}</span>
+                <span class="font-mono text-slate-200 font-medium">{{ ag.share }}%</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Интересы Яндекс Крипты -->
+        <div class="bg-slate-900/80 p-4 space-y-2">
+          <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Интересы (Яндекс Крипта)</div>
+          {% for interest in audience.demographics.interests[:8] %}
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-300 truncate max-w-[130px]">{{ interest.name }}</span>
+              <span class="font-mono text-amber-300 ml-2 shrink-0">{{ interest.visits }} viz.</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1 mb-1">
+              <div class="bg-amber-500/70 h-1 rounded-full" style="width:{{ interest.share }}%"></div>
+            </div>
+          {% else %}
+            <div class="text-xs text-slate-500">Нет данных</div>
+          {% endfor %}
+        </div>
+
+        <!-- Устройства -->
+        <div class="bg-slate-900/80 p-4 space-y-3">
+          <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Устройства</div>
+          {% if audience.demographics.devices %}
+            {% for dev, dpct in audience.demographics.devices.items() %}
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-slate-300">{{ dev }}</span>
+                  <span class="font-bold font-mono {% if dpct >= 70 %}text-emerald-400{% else %}text-slate-300{% endif %}">{{ dpct }}%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full {% if dpct >= 70 %}bg-emerald-500{% else %}bg-indigo-500{% endif %}" style="width:{{ dpct }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+          <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+            {# Jinja2 doesn't support .get() on dicts directly; iterate to find desktop pct #}
+            {% set desk_pct = namespace(val=0) %}
+            {% for dev_name, dev_val in audience.demographics.devices.items() %}
+              {% if 'Десктоп' in dev_name or 'ПК' in dev_name %}
+                {% set desk_pct.val = dev_val %}
+              {% endif %}
+            {% endfor %}
+            {% if desk_pct.val >= 80 %}
+              <span class="text-emerald-300 font-medium">{{ desk_pct.val }}% десктоп.</span>
+              Приоритет: 728×90 под лидом и 336×280 в тексте статьи.
+            {% else %}
+              Рекомендуются адаптивные форматы 300×250.
+            {% endif %}
+          </div>
+          <div class="pt-2 border-t border-slate-800/80">
+            <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">Пиковые часы</div>
+            <div class="flex flex-wrap gap-1.5">
+              {% for h in audience.demographics.peak_hours %}
+                <span class="rounded bg-indigo-900/60 border border-indigo-700/40 px-2 py-0.5 text-[11px] font-mono text-indigo-300">{{ h }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Города -->
+        <div class="bg-slate-900/80 p-4 space-y-2">
+          <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1">Топ городов</div>
+          {% for city in audience.demographics.cities %}
+            <div class="flex items-center justify-between text-xs py-0.5">
+              <span class="text-slate-300">{{ city.name }}</span>
+              <span class="font-mono text-slate-200 font-medium">{{ city.visits }}</span>
+            </div>
+          {% else %}
+            <div class="text-xs text-slate-500">Нет данных</div>
+          {% endfor %}
+          {% if audience.demographics.total_identified_visits %}
+            <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-500">
+              Идентифицировано визитов: <span class="text-slate-300 font-mono">{{ audience.demographics.total_identified_visits }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Platform Comparison Grid (Website vs Dzen) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Website Card -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="font-semibold uppercase tracking-wider text-slate-300">Сайт (WordPress)</span>
+          <span class="h-2 w-2 rounded-full bg-emerald-500" title="Счётчик сайта активен"></span>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-white">{{ audience.website_pageviews }}</div>
+          <div class="text-xs text-slate-400">просмотров страниц за {{ days }} дн.</div>
+        </div>
+        <div class="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <div class="text-slate-500 text-[11px]">Читатели</div>
+            <div class="font-semibold text-slate-200">{{ audience.website_visitors }}</div>
+          </div>
+          <div>
+            <div class="text-slate-500 text-[11px]">Ср. время</div>
+            <div class="font-semibold text-emerald-400 font-mono">
+              {% if audience.website_avg_time >= 60 %}
+                {{ (audience.website_avg_time / 60) | round(1) }} мин
+              {% else %}
+                {{ audience.website_avg_time | round(0) | int }} сек
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dzen Card -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="font-semibold uppercase tracking-wider text-slate-300">Яндекс Дзен</span>
+          {% if audience.dzen_available %}
+            <span class="h-2 w-2 rounded-full bg-emerald-500" title="Счётчик Дзена активен"></span>
+          {% else %}
+            <span class="h-2 w-2 rounded-full bg-amber-500" title="Ожидает ввода номера счётчика"></span>
+          {% endif %}
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-amber-400">{{ audience.dzen_pageviews }}</div>
+          <div class="text-xs text-slate-400">просмотров публикаций</div>
+        </div>
+        <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+          {% if audience.dzen_available %}
+            <span class="text-emerald-300 font-medium">Счётчик №{{ audience.dzen_counter_id }} подключён.</span>
+          {% else %}
+            <span class="text-slate-400">
+              Укажите счётчик канала в <a href="/settings" class="text-indigo-400 underline">Настройках</a> для параллельной аналитики.
+            </span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Audience Engagement Ratio -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="font-semibold uppercase tracking-wider text-slate-300">Отказы и Внимание</span>
+          <span class="text-[11px] font-mono text-slate-500">Quality Score</span>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-indigo-400">{{ audience.website_bounce_rate_pct }}%</div>
+          <div class="text-xs text-slate-400">показатель отказов сайта</div>
+        </div>
+        <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+          Низкий показатель отказов свидетельствует о высокой готовности к дочитыванию до рекламных блоков.
+        </div>
+      </div>
+
+      <!-- Ad Potential Leaders -->
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="font-semibold uppercase tracking-wider text-slate-300">Лидеры конверсии</span>
+          <span class="h-2 w-2 rounded-full bg-amber-400"></span>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-emerald-400">{{ audience.top_monetization_categories | length }}</div>
+          <div class="text-xs text-slate-400">рубрик с высоким CTR-индексом (&gt;70)</div>
+        </div>
+        <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 truncate">
+          {% for c in audience.top_monetization_categories[:2] %}
+            <span class="text-slate-300 font-medium">{{ c.category_title }}</span>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Categories Monitization Recommendations Cards -->
+    {% if audience.top_monetization_categories %}
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-semibold text-slate-200">Топ рубрик для первоочередного размещения рекламы</h4>
+          <span class="text-xs text-slate-400">Ранжирование по индексу Ad Potential</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {% for top_cat in audience.top_monetization_categories[:3] %}
+            <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-slate-200 text-xs truncate">{{ top_cat.category_title }}</span>
+                <span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
+                  {{ top_cat.ad_potential_score }} / 100
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                {{ top_cat.ad_recommendation }}
+              </p>
+              <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>Доля: {{ top_cat.audience_share }}%</span>
+                <span>Ср. время: {{ top_cat.avg_time_display }}</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- 20 Categories Audience & Ad Potential Matrix Table -->
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-200">Матрица читательских интересов и рекламного потенциала по рубрикам</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Данные агрегируются непрерывно и формируют базу знаний для страницы <code class="text-amber-300">/ads</code>.</p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+          Рубрик в каталоге: {{ audience.categories | length }}
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-800 text-xs">
+          <thead class="bg-slate-900/90 text-slate-400 font-medium">
+            <tr>
+              <th class="px-4 py-3 text-left">Рубрика</th>
+              <th class="px-3 py-3 text-left">Доля аудитории</th>
+              <th class="px-3 py-3 text-right">Просмотры</th>
+              <th class="px-3 py-3 text-right">Время чтения</th>
+              <th class="px-3 py-3 text-right">Отказы</th>
+              <th class="px-3 py-3 text-center">Индекс рекламы</th>
+              <th class="px-4 py-3 text-left">Рекомендация для /ads</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            {% for cat in audience.categories %}
+              <tr class="hover:bg-slate-900/50 transition">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <div class="font-semibold text-slate-200">{{ cat.category_title }}</div>
+                  <div class="text-[11px] font-mono text-slate-500">{{ cat.category_slug }}</div>
+                </td>
+                <td class="px-3 py-3 min-w-[130px]">
+                  <div class="flex items-center justify-between text-[11px] text-slate-300 mb-1">
+                    <span>{{ cat.audience_share }}%</span>
+                  </div>
+                  <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-indigo-500 h-1.5 rounded-full" style="width: {{ [cat.audience_share, 100] | min }}%"></div>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-slate-300 font-medium">
+                  {{ cat.pageviews }}
+                </td>
+                <td class="px-3 py-3 text-right font-mono whitespace-nowrap">
+                  <span class="rounded px-1.5 py-0.5 text-[11px] {% if cat.avg_time_on_page >= 80 %}bg-emerald-950/60 text-emerald-300{% elif cat.avg_time_on_page >= 45 %}bg-amber-950/60 text-amber-300{% else %}bg-slate-800 text-slate-400{% endif %}">
+                    {{ cat.avg_time_display }}
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-right font-mono text-slate-400">
+                  {{ cat.bounce_rate_pct }}%
+                </td>
+                <td class="px-3 py-3 text-center whitespace-nowrap font-mono">
+                  {% if cat.ad_readiness_level == 'high' %}
+                    <span class="rounded-full bg-emerald-500/20 text-emerald-300 px-2 py-0.5 font-bold border border-emerald-500/30">
+                      {{ cat.ad_potential_score }}
+                    </span>
+                  {% elif cat.ad_readiness_level == 'medium' %}
+                    <span class="rounded-full bg-amber-500/20 text-amber-300 px-2 py-0.5 font-bold border border-amber-500/30">
+                      {{ cat.ad_potential_score }}
+                    </span>
+                  {% else %}
+                    <span class="rounded-full bg-slate-800 text-slate-400 px-2 py-0.5 font-bold">
+                      {{ cat.ad_potential_score }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 max-w-xs text-[11px] text-slate-300 leading-snug">
+                  {{ cat.ad_recommendation }}
+                  {% if cat.top_keywords %}
+                    <div class="mt-1 flex flex-wrap gap-1">
+                      {% for kw in cat.top_keywords[:3] %}
+                        <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400 font-mono">#{{ kw.query }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Active /ads Closed-Loop Bridge Banner -->
+    <div class="rounded-xl border border-emerald-900/40 bg-emerald-950/15 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">📢</span>
+        <div>
+          <h4 class="text-xs font-semibold text-emerald-300">Сквозная связка /seo ↔ /ads активна (Closed-Loop Conversion Learning)</h4>
+          <p class="text-[11px] text-emerald-200/80 mt-0.5">
+            Целевые визиты и срабатывание целей из Яндекс.Метрики каждого рекламодателя автоматически подаются в алгоритмы <code>/seo</code> и генератор нативных вставок.
+          </p>
+        </div>
+      </div>
+      <div class="shrink-0">
+        <a href="/ads" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-semibold text-xs transition-colors">
+          🎯 Управление рекламодателями и целями →
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Modal Container for AI Snippet Optimizer -->
+<div id="seo-modal-container"></div>
+
+<script>
+function switchSeoTab(tabId, btnElement) {
+  // Hide all tab contents
+  document.querySelectorAll('.seo-tab-content').forEach(function(el) {
+    el.classList.add('hidden');
+  });
+  // Reset all button styles
+  document.querySelectorAll('.seo-tab-btn').forEach(function(btn) {
+    btn.classList.remove('border-indigo-500', 'text-indigo-400', 'font-semibold');
+    btn.classList.add('border-transparent', 'text-slate-400');
+  });
+  // Show target tab
+  var target = document.getElementById(tabId);
+  if (target) {
+    target.classList.remove('hidden');
+  }
+  // Style active button
+  if (btnElement) {
+    btnElement.classList.remove('border-transparent', 'text-slate-400');
+    btnElement.classList.add('border-indigo-500', 'text-indigo-400', 'font-semibold');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{#
+  Apple macOS HIG: Lab Main Container (Status + Step 1 Groups + Step 2 Studio)
+#}
+<div id="lab-main-container" class="space-y-6">
+  {# Bento System Status #}
+  {% include "partials/lab_status_card.html" %}
+
+  {# Notice / Alert if any #}
+  {% if alert_message %}
+    <div class="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm flex items-center justify-between text-xs">
+      <span class="text-mac-ink font-medium">{{ alert_message }}</span>
+      <span class="mac-pill mac-pill-blue">Готово</span>
+    </div>
+  {% endif %}
+
+  {# Main News Groups & Deduplication Section (Full Width, Apple HIG) #}
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-mac-ink">Группы новостей и сюжеты конвейера</h2>
+        <p class="text-xs text-mac-secondary">
+          Кластеры сюжетов, дубликаты из каналов, метрики интереса AEVI и пошаговая Студия сюжета.
+        </p>
+      </div>
+    </div>
+
+    {% include "partials/lab_groups_list.html" %}
+  </div>
+
+  {# Slide-Over Sheet (Drawer) for Stepwise Cluster Studio #}
+  {% include "partials/lab_cluster_drawer.html" %}
+
+</div>

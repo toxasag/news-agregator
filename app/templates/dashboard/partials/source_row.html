@@ -1,0 +1,72 @@
+{# One Telegram dialog row. Swapped in whole by the flags endpoint after a save. #}
+<tr id="source-row-{{ row.id }}" class="hover:bg-slate-900/40 align-top">
+  <td class="px-3 py-2">
+    <div class="flex items-start gap-2.5">
+      {% if row.avatar %}
+        <img src="{{ row.avatar }}" alt="" width="36" height="36"
+             class="h-9 w-9 flex-shrink-0 rounded-full object-cover">
+      {% else %}
+        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center
+                     rounded-full bg-slate-800 text-sm text-slate-400">
+          {{ row.name | trim | first | upper }}
+        </span>
+      {% endif %}
+      <div class="min-w-0">
+        <div class="truncate text-slate-200">{{ row.name }}</div>
+        <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-400">
+            {{ row.kind_label }}
+          </span>
+          {% if row.link %}
+            <a href="{{ row.link }}" target="_blank" rel="noopener noreferrer"
+               class="text-[11px] text-sky-300 hover:text-sky-100 hover:underline"
+               onclick="event.stopPropagation()">
+              открыть в Telegram
+            </a>
+          {% else %}
+            <span class="text-[11px] text-slate-600">нет публичной ссылки</span>
+          {% endif %}
+        </div>
+        {% if row.description %}
+          <p class="mt-1 line-clamp-2 text-xs text-slate-500">{{ row.description }}</p>
+        {% endif %}
+        <div class="mono mt-0.5 text-xs text-slate-600">{{ row.identifier }}</div>
+      </div>
+    </div>
+  </td>
+  <td class="mono px-2 py-2 text-xs text-slate-500">
+    {{ row.telegram_id or '—' }}
+  </td>
+  <td class="px-2 py-2 text-center">
+    <form hx-post="/api/ui/sources/{{ row.id }}/flags"
+          hx-target="#source-row-{{ row.id }}"
+          hx-swap="outerHTML">
+      <input type="checkbox" name="is_active" value="true"
+             {% if row.is_active %}checked{% endif %}
+             onchange="this.form.requestSubmit()"
+             class="h-4 w-4 rounded border-slate-600 bg-slate-800">
+    </form>
+  </td>
+  <td class="px-2 py-2 text-center">
+    {% if row.is_telegram %}
+      <form hx-post="/api/ui/sources/{{ row.id }}/flags"
+            hx-target="#source-row-{{ row.id }}"
+            hx-swap="outerHTML">
+        <input type="checkbox" name="fetch_media" value="true"
+               {% if row.fetch_media %}checked{% endif %}
+               onchange="this.form.requestSubmit()"
+               class="h-4 w-4 rounded border-slate-600 bg-slate-800">
+        <input type="hidden" name="is_active" value="{{ 'true' if row.is_active else 'false' }}">
+      </form>
+    {% else %}
+      <span class="text-xs text-slate-600">—</span>
+    {% endif %}
+  </td>
+  <td class="mono px-2 py-2 text-right text-slate-300">
+    {{ row.posts_collected }}
+  </td>
+  <td class="px-2 py-2 text-right">
+    <div class="mono text-xs text-slate-300">{{ row.unread_label }}</div>
+    <div class="mono text-[11px] text-slate-600">{{ row.last_scraped_at or 'никогда' }}</div>
+  </td>
+</tr>

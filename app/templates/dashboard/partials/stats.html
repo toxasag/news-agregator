@@ -1,0 +1,507 @@
+{#
+  Overview counters, daily timeline, failure diagnostics, and AI spend radar.
+  Rendered both inline on first paint and as the HTMX polling fragment.
+#}
+<div class="space-y-6">
+
+  {# 1. Control & Filter Toolbar Strip #}
+  <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-2.5 shadow-sm"
+       style="background: var(--paper); border: 1px solid var(--hairline);">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-[11px] font-semibold uppercase tracking-wider px-2 text-mac-secondary">Период:</span>
+      {% set periods = [(1, 'Сегодня'), (7, '7 дней'), (14, '14 дней'), (30, '30 дней')] %}
+      {% for p_days, p_label in periods %}
+        <button
+          hx-get="/api/ui/stats?days={{ p_days }}"
+          hx-target="#stats"
+          hx-swap="innerHTML"
+          class="px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer {% if overview.days_window == p_days and not overview.is_custom_range %}bg-black/10 font-semibold text-ink shadow-xs{% else %}text-mac-secondary hover:bg-black/5 hover:text-ink{% endif %}">
+          {{ p_label }}
+        </button>
+      {% endfor %}
+
+      {# Manual date range selector #}
+      <form hx-get="/api/ui/stats"
+            hx-target="#stats"
+            hx-swap="innerHTML"
+            class="flex items-center gap-1.5 ml-1 pl-2 border-l border-black/10">
+        <span class="text-[11px] text-mac-secondary font-medium">От:</span>
+        <input type="date"
+               name="date_from"
+               value="{{ overview.date_from }}"
+               class="px-2 py-1 text-xs rounded-lg border border-black/15 bg-white text-ink focus:outline-hidden focus:ring-1 focus:ring-apple-blue shadow-2xs cursor-pointer"
+               required />
+        <span class="text-[11px] text-mac-secondary font-medium">До:</span>
+        <input type="date"
+               name="date_to"
+               value="{{ overview.date_to }}"
+               class="px-2 py-1 text-xs rounded-lg border border-black/15 bg-white text-ink focus:outline-hidden focus:ring-1 focus:ring-apple-blue shadow-2xs cursor-pointer"
+               required />
+        <button type="submit"
+                class="px-2.5 py-1 text-xs font-medium rounded-lg bg-apple-blue text-white hover:bg-apple-blue/90 shadow-2xs transition-colors cursor-pointer">
+          Показать
+        </button>
+      </form>
+    </div>
+
+    <div class="flex items-center gap-3">
+      {% if overview.is_custom_range %}
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/10 text-apple-blue">
+          Выбран диапазон: {{ overview.date_from }} — {{ overview.date_to }}
+        </span>
+      {% endif %}
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/[0.04] text-[11.5px] text-mac-secondary font-medium select-none"
+           title="Данные обновляются в фоновом режиме">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Автообновление (45с)</span>
+      </div>
+      <button
+        hx-get="/api/ui/stats?days={{ overview.days_window }}{% if overview.is_custom_range %}&date_from={{ overview.date_from }}&date_to={{ overview.date_to }}{% endif %}"
+        hx-target="#stats"
+        hx-swap="innerHTML"
+        class="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium text-mac-secondary hover:text-ink hover:bg-black/5 transition-colors cursor-pointer">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <span>Обновить</span>
+      </button>
+    </div>
+  </div>
+
+  {# 2. Top Bento KPI Cards #}
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div class="card p-4">
+      <div class="text-[11px] font-medium uppercase tracking-wider text-mac-secondary">Сырые посты</div>
+      <div class="mt-1.5 text-[26px] font-semibold tabular-nums leading-none text-ink">{{ overview.summary_cards.raw_news_total }}</div>
+      <div class="mt-1.5 text-[12px] text-mac-secondary">
+        {% if overview.summary_cards.raw_news_unprocessed %}
+          <span class="text-amber-600 font-medium">{{ overview.summary_cards.raw_news_unprocessed }} в очереди</span>
+        {% else %}
+          в очереди нет
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card p-4">
+      <div class="text-[11px] font-medium uppercase tracking-wider text-mac-secondary">Инфоповоды</div>
+      <div class="mt-1.5 text-[26px] font-semibold tabular-nums leading-none text-ink">{{ overview.summary_cards.clusters_total }}</div>
+      <div class="mt-1.5 text-[12px] text-mac-secondary">уникальных сюжетов</div>
+    </div>
+
+    <div class="card p-4">
+      <div class="text-[11px] font-medium uppercase tracking-wider text-mac-secondary">Материалы</div>
+      <div class="mt-1.5 text-[26px] font-semibold tabular-nums leading-none text-ink">{{ overview.summary_cards.articles_total }}</div>
+      <div class="mt-1.5 text-[12px] text-mac-secondary">готовых статей</div>
+    </div>
+
+    <div class="card p-4">
+      <div class="text-[11px] font-medium uppercase tracking-wider text-mac-secondary">Опубликовано</div>
+      <div class="mt-1.5 text-[26px] font-semibold tabular-nums leading-none text-emerald-600">{{ overview.summary_cards.articles_published_total }}</div>
+      <div class="mt-1.5 text-[12px] text-mac-secondary">на сайт и в соцсети</div>
+    </div>
+
+    <div class="card p-4">
+      <div class="text-[11px] font-medium uppercase tracking-wider text-mac-secondary">Расход ИИ ({{ overview.days_window }} дн)</div>
+      <div class="mt-1.5 text-[26px] font-semibold tabular-nums leading-none text-ink">${{ "%.2f"|format(overview.ai_radar.total_cost_usd) }}</div>
+      <div class="mt-1.5 text-[12px] text-mac-secondary">~{{ "%.0f"|format(overview.ai_radar.total_cost_rub) }} ₽ ({{ "%.1f"|format(overview.ai_radar.total_tokens / 1000000) }}M ток.)</div>
+    </div>
+  </div>
+
+  {# 2.5 Rubric Distribution Breakdown #}
+  <section class="card overflow-hidden shadow-sm">
+    <div class="card-head flex items-center justify-between border-b border-black/[0.06] p-4 bg-black/[0.01]">
+      <div>
+        <h2 class="text-sm font-semibold text-ink flex items-center gap-2">
+          <span>📊 Распределение материалов по рубрикам</span>
+          <span class="chip text-[11px] bg-black/[0.05] text-ink font-normal">
+            {% if overview.is_custom_range %}
+              период: {{ overview.date_from }} — {{ overview.date_to }}
+            {% else %}
+              за {{ overview.days_window }} дн.
+            {% endif %}
+          </span>
+        </h2>
+        <p class="text-[11.5px] text-mac-secondary mt-0.5">Сколько новостей создано в каждой тематической рубрике за выбранный временной диапазон.</p>
+      </div>
+      <div class="text-xs text-mac-secondary font-medium">
+        Всего создано: <span class="font-bold text-ink tabular-nums">{{ overview.category_breakdown | sum(attribute='count') }} ст.</span>
+      </div>
+    </div>
+
+    <div class="p-4">
+      {% if not overview.category_breakdown %}
+        <div class="p-4 rounded-xl bg-black/[0.02] border border-black/[0.06] text-center text-xs text-mac-secondary">
+          За выбранный период статьи ещё не создавались.
+        </div>
+      {% else %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+          {% for cat in overview.category_breakdown %}
+            <div class="flex flex-col justify-between p-3 rounded-xl border border-black/[0.06] bg-white shadow-2xs hover:border-black/15 transition-all">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-xs font-semibold text-ink line-clamp-1" title="{{ cat.title }}">{{ cat.title }}</span>
+                <span class="text-xs font-bold text-apple-blue tabular-nums shrink-0">{{ cat.count }} ст.</span>
+              </div>
+              <div class="mt-2.5">
+                <div class="flex items-center justify-between text-[10.5px] text-mac-secondary mb-1">
+                  <span class="font-mono text-[10px] text-mac-secondary/70 truncate">{{ cat.category }}</span>
+                  <span class="tabular-nums font-medium text-ink">{{ cat.percentage }}%</span>
+                </div>
+                <div class="w-full bg-black/[0.06] h-1.5 rounded-full overflow-hidden">
+                  <div class="bg-apple-blue h-full rounded-full transition-all duration-300" style="width: {{ cat.percentage }}%;"></div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# 3. Daily Pulse Timeline Table #}
+  <section class="card overflow-hidden shadow-sm">
+    <div class="card-head flex items-center justify-between border-b border-black/[0.06] p-4 bg-black/[0.01]">
+      <div>
+        <h2 class="text-sm font-semibold text-ink flex items-center gap-2">
+          <span>📅 Суточный пульс конвейера</span>
+          <span class="chip text-[11px] bg-black/[0.05] text-ink font-normal">за {{ overview.days_window }} дн.</span>
+        </h2>
+        <p class="text-[11.5px] text-mac-secondary mt-0.5">Входящие посты, фильтрация дублей, генерация, площадки дистрибуции и расходы за каждый день.</p>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-black/[0.06] bg-black/[0.02] text-mac-secondary text-[11px] uppercase tracking-wider">
+            <th class="py-2.5 px-3 font-medium">Дата</th>
+            <th class="py-2.5 px-3 font-medium tabular-nums">Сырых</th>
+            <th class="py-2.5 px-3 font-medium">Отсеяно дублей</th>
+            <th class="py-2.5 px-3 font-medium tabular-nums">Сюжетов</th>
+            <th class="py-2.5 px-3 font-medium tabular-nums">Статей</th>
+            <th class="py-2.5 px-3 font-medium">Опубликовано</th>
+            <th class="py-2.5 px-3 font-medium">Где вышло (успех)</th>
+            <th class="py-2.5 px-3 font-medium">Где сбои</th>
+            <th class="py-2.5 px-3 font-medium text-right">Расход ИИ</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-black/[0.04]">
+          {% for row in overview.timeline %}
+            <tr class="hover:bg-black/[0.015] transition-colors">
+              <td class="py-3 px-3 font-medium text-ink whitespace-nowrap">
+                {{ row.date_label }}
+              </td>
+              <td class="py-3 px-3 font-semibold tabular-nums text-ink">
+                {{ row.raw_total }}
+              </td>
+              <td class="py-3 px-3 whitespace-nowrap">
+                <span class="tabular-nums font-medium text-mac-secondary">{{ row.raw_filtered_dups }}</span>
+                {% if row.raw_total > 0 %}
+                  <span class="ml-1 text-[10.5px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 font-medium">
+                    {{ row.dedup_pct }}%
+                  </span>
+                {% endif %}
+              </td>
+              <td class="py-3 px-3 tabular-nums font-medium text-ink">
+                {{ row.clusters_count }}
+              </td>
+              <td class="py-3 px-3 tabular-nums font-semibold text-ink">
+                {{ row.articles_total }}
+              </td>
+              <td class="py-3 px-3 whitespace-nowrap">
+                <span class="tabular-nums font-semibold text-emerald-600">{{ row.articles_published }}</span>
+                {% if row.articles_total > 0 %}
+                  <span class="ml-1 text-[10.5px] px-1.5 py-0.5 rounded-md {% if row.published_pct >= 90 %}bg-emerald-500/10 text-emerald-700{% else %}bg-amber-500/10 text-amber-700{% endif %} font-medium">
+                    {{ row.published_pct }}%
+                  </span>
+                {% endif %}
+              </td>
+              <td class="py-3 px-3">
+                <div class="flex flex-wrap gap-1 max-w-[280px]">
+                  {% if row.platforms_published %}
+                    {% for p_code, p_cnt in row.platforms_published.items() %}
+                      <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-emerald-500/10 text-emerald-700" title="{{ p_code }}: {{ p_cnt }} успешно">
+                        <span class="uppercase font-semibold">{{ p_code }}</span>: {{ p_cnt }}
+                      </span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="text-mac-secondary text-[11px]">—</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <div class="flex flex-wrap gap-1 max-w-[240px]">
+                  {% if row.platforms_failed %}
+                    {% for f_code, f_cnt in row.platforms_failed.items() %}
+                      <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-rose-500/10 text-rose-700" title="{{ f_code }}: {{ f_cnt }} сбоев">
+                        <span class="uppercase font-semibold">{{ f_code }}</span>: {{ f_cnt }}
+                      </span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="text-emerald-600 text-[11px] font-medium">✓ 0 сбоев</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="py-3 px-3 text-right whitespace-nowrap">
+                <div class="font-medium text-ink tabular-nums">${{ "%.2f"|format(row.ai_cost_usd) }}</div>
+                <div class="text-[10.5px] text-mac-secondary tabular-nums">{{ "%.1f"|format(row.ai_tokens / 1000) }}k tok ({{ row.ai_calls }} выз.)</div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# 4. Failure Inspector: "Где не опубликовано и почему" #}
+  <section class="card shadow-sm">
+    <div class="card-head flex items-center justify-between border-b border-black/[0.06] p-4 bg-black/[0.01]">
+      <div>
+        <h2 class="text-sm font-semibold text-ink flex items-center gap-2">
+          <span>⚠️ Инспектор сбоев дистрибуции</span>
+          <span class="text-[11.5px] text-mac-secondary font-normal">(где не опубликовано и почему за {{ overview.days_window }} дн.)</span>
+        </h2>
+        <p class="text-[11.5px] text-mac-secondary mt-0.5">Точные причины отказов соцсетей (лимиты API, сессии, селекторы) и список затронутых статей.</p>
+      </div>
+      <div>
+        <a href="/settings" class="inline-flex items-center gap-1 text-xs text-apple-blue hover:underline font-medium">
+          <span>Настройки подключений соцсетей →</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="p-4 space-y-4">
+      {% if not overview.failures %}
+        <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 text-xs flex items-center gap-2.5">
+          <span class="text-base">🎉</span>
+          <div>
+            <div class="font-semibold">Все публикации выполнены без сбоев!</div>
+            <div class="text-[11.5px] opacity-90">За последние {{ overview.days_window }} дн. ни одна платформа не вернула ошибок доставки.</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="grid gap-4">
+          {% for plat in overview.failures %}
+            <div class="rounded-xl border border-black/[0.08] bg-white p-3.5 shadow-2xs">
+              <div class="flex items-center justify-between gap-3 pb-2.5 border-b border-black/[0.05]">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-700">
+                    {{ plat.platform_code }}
+                  </span>
+                  <span class="text-xs font-semibold text-ink">{{ plat.platform_name }}</span>
+                </div>
+                <div class="text-xs font-semibold text-rose-600">
+                  {{ plat.total_failures }} сбоев доставки
+                </div>
+              </div>
+
+              <div class="mt-3 space-y-3">
+                {% for issue in plat.issues %}
+                  <div class="rounded-lg bg-black/[0.02] border border-black/[0.04] p-3 text-xs">
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold text-ink flex items-center gap-1.5">
+                          <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          <span>{{ issue.reason }}</span>
+                        </div>
+                        <div class="mt-1 font-mono text-[11px] text-mac-secondary break-all bg-black/[0.03] p-1.5 rounded">
+                          {{ issue.raw_error }}
+                        </div>
+                      </div>
+                      <span class="shrink-0 px-2 py-0.5 rounded-full bg-black/5 text-ink font-medium text-[11px] tabular-nums">
+                        {{ issue.count }} ст.
+                      </span>
+                    </div>
+
+                    {% if issue.sample_articles %}
+                      <div class="mt-2.5 pt-2 border-t border-black/[0.04]">
+                        <div class="text-[10.5px] font-medium text-mac-secondary uppercase tracking-wider mb-1">Примеры затронутых материалов:</div>
+                        <div class="space-y-1">
+                          {% for smp in issue.sample_articles %}
+                            <div class="flex items-center justify-between text-[11.5px] gap-2">
+                              <a href="/articles?search={{ smp.title | urlencode }}"
+                                 class="text-apple-blue hover:underline truncate max-w-[85%]"
+                                 title="{{ smp.title }}">
+                                #{{ smp.id }} {{ smp.title }}
+                              </a>
+                              <span class="text-mac-secondary shrink-0 text-[10.5px] tabular-nums">{{ smp.created_at }}</span>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# 5. AI Spend Radar: Tokens, Costs, Models, Providers #}
+  <section class="card shadow-sm">
+    <div class="card-head flex items-center justify-between border-b border-black/[0.06] p-4 bg-black/[0.01]">
+      <div>
+        <h2 class="text-sm font-semibold text-ink flex items-center gap-2">
+          <span>🧠 Финансовый радар ИИ и аудит моделей</span>
+          <span class="chip text-[11px] bg-black/[0.05] text-ink font-normal">за {{ overview.days_window }} дн.</span>
+        </h2>
+        <p class="text-[11.5px] text-mac-secondary mt-0.5">Фактические затраты в долларах и рублях, объемы токенов и производительность шлюзов.</p>
+      </div>
+      <div>
+        <a href="/settings/ai" class="inline-flex items-center gap-1 text-xs text-apple-blue hover:underline font-medium">
+          <span>Управление моделями и ключами →</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="p-4 space-y-4">
+      {# AI Mini-KPI strip #}
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 p-3 rounded-xl bg-black/[0.02] border border-black/[0.04]">
+        <div>
+          <div class="text-[10.5px] text-mac-secondary uppercase font-medium">Общий расход ($)</div>
+          <div class="text-base font-semibold text-ink tabular-nums mt-0.5">${{ "%.4f"|format(overview.ai_radar.total_cost_usd) }}</div>
+          <div class="text-[11px] text-mac-secondary tabular-nums">~{{ "%.2f"|format(overview.ai_radar.total_cost_rub) }} ₽</div>
+        </div>
+        <div>
+          <div class="text-[10.5px] text-mac-secondary uppercase font-medium">Всего токенов</div>
+          <div class="text-base font-semibold text-ink tabular-nums mt-0.5">{{ "%.2f"|format(overview.ai_radar.total_tokens / 1000000) }}M</div>
+          <div class="text-[11px] text-mac-secondary tabular-nums">In: {{ "%.2f"|format(overview.ai_radar.prompt_tokens / 1000000) }}M · Out: {{ "%.2f"|format(overview.ai_radar.completion_tokens / 1000000) }}M</div>
+        </div>
+        <div>
+          <div class="text-[10.5px] text-mac-secondary uppercase font-medium">Вызовов моделей</div>
+          <div class="text-base font-semibold text-ink tabular-nums mt-0.5">{{ overview.ai_radar.total_calls }}</div>
+          <div class="text-[11px] text-mac-secondary">успешных запросов</div>
+        </div>
+        <div>
+          <div class="text-[10.5px] text-mac-secondary uppercase font-medium">Ср. задержка</div>
+          <div class="text-base font-semibold text-ink tabular-nums mt-0.5">{{ "%.1f"|format(overview.ai_radar.avg_latency_ms / 1000) }} с</div>
+          <div class="text-[11px] text-mac-secondary">время генерации</div>
+        </div>
+        <div>
+          <div class="text-[10.5px] text-mac-secondary uppercase font-medium">Себестоимость 1 статьи</div>
+          <div class="text-base font-semibold text-emerald-600 tabular-nums mt-0.5">${{ "%.4f"|format(overview.ai_radar.cost_per_article) }}</div>
+          <div class="text-[11px] text-mac-secondary tabular-nums">~{{ "%.2f"|format(overview.ai_radar.cost_per_article * 95) }} ₽ за готовый текст</div>
+        </div>
+      </div>
+
+      {# Two-column breakdown: by Model & by Provider/Role #}
+      <div class="grid gap-4 lg:grid-cols-12">
+        {# Col 1: By Model (7 cols) #}
+        <div class="lg:col-span-7 space-y-2">
+          <div class="text-xs font-semibold text-ink">Расход по моделям</div>
+          <div class="overflow-x-auto rounded-xl border border-black/[0.06]">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-black/[0.06] bg-black/[0.02] text-mac-secondary text-[10.5px] uppercase">
+                  <th class="py-2 px-2.5 font-medium">Модель</th>
+                  <th class="py-2 px-2.5 font-medium">Провайдер</th>
+                  <th class="py-2 px-2.5 font-medium tabular-nums text-right">Запросы</th>
+                  <th class="py-2 px-2.5 font-medium tabular-nums text-right">Токены</th>
+                  <th class="py-2 px-2.5 font-medium tabular-nums text-right">Расход ($)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-black/[0.04]">
+                {% for m in overview.ai_radar.models %}
+                  <tr class="hover:bg-black/[0.015]">
+                    <td class="py-2 px-2.5 font-medium text-ink truncate max-w-[150px]" title="{{ m.model }}">
+                      {{ m.model }}
+                    </td>
+                    <td class="py-2 px-2.5 text-mac-secondary truncate max-w-[120px]" title="{{ m.provider_name }}">
+                      {{ m.provider_name }}
+                    </td>
+                    <td class="py-2 px-2.5 text-right tabular-nums text-ink">
+                      {{ m.calls }}
+                    </td>
+                    <td class="py-2 px-2.5 text-right tabular-nums text-mac-secondary">
+                      {{ "%.1f"|format(m.total_tokens / 1000) }}k
+                    </td>
+                    <td class="py-2 px-2.5 text-right tabular-nums font-semibold text-ink">
+                      ${{ "%.4f"|format(m.cost_usd) }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {# Col 2: By Provider & Role (5 cols) #}
+        <div class="lg:col-span-5 space-y-4">
+          <div class="space-y-2">
+            <div class="text-xs font-semibold text-ink">Расход по провайдерам</div>
+            <div class="overflow-x-auto rounded-xl border border-black/[0.06]">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-black/[0.06] bg-black/[0.02] text-mac-secondary text-[10.5px] uppercase">
+                    <th class="py-2 px-2.5 font-medium">Провайдер</th>
+                    <th class="py-2 px-2.5 font-medium tabular-nums text-right">Запросы</th>
+                    <th class="py-2 px-2.5 font-medium tabular-nums text-right">Расход ($)</th>
+                    <th class="py-2 px-2.5 font-medium tabular-nums text-right">Доля</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-black/[0.04]">
+                  {% for p in overview.ai_radar.providers %}
+                    <tr class="hover:bg-black/[0.015]">
+                      <td class="py-2 px-2.5 font-medium text-ink truncate max-w-[130px]" title="{{ p.provider_name }}">
+                        {{ p.provider_name }}
+                      </td>
+                      <td class="py-2 px-2.5 text-right tabular-nums text-ink">
+                        {{ p.calls }}
+                      </td>
+                      <td class="py-2 px-2.5 text-right tabular-nums font-semibold text-ink">
+                        ${{ "%.4f"|format(p.cost_usd) }}
+                      </td>
+                      <td class="py-2 px-2.5 text-right tabular-nums text-mac-secondary">
+                        {{ p.cost_pct }}%
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-xs font-semibold text-ink">Роли в конвейере</div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              {% for r in overview.ai_radar.roles %}
+                <div class="p-2 rounded-lg bg-black/[0.02] border border-black/[0.04]">
+                  <div class="text-[10.5px] font-medium text-mac-secondary truncate" title="{{ r.role_label }}">{{ r.role_label }}</div>
+                  <div class="mt-0.5 font-semibold text-ink tabular-nums">${{ "%.4f"|format(r.cost_usd) }}</div>
+                  <div class="text-[10.5px] text-mac-secondary tabular-nums">{{ r.calls }} выз. · {{ "%.1f"|format(r.total_tokens / 1000) }}k tok</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# 6. Worker Readiness Status #}
+  <section class="card shadow-sm">
+    <div class="card-head flex items-center justify-between border-b border-black/[0.06] p-4 bg-black/[0.01]">
+      <div>
+        <h2 class="text-sm font-semibold text-ink">Готовность воркеров и подсистем</h2>
+        <p class="text-[11.5px] text-mac-secondary mt-0.5">Конфигурация очередей, парсеров и адаптеров публикации.</p>
+      </div>
+      <span class="text-[11.5px] text-mac-secondary">по конфигурации, не по heartbeat</span>
+    </div>
+    <div class="card-body p-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      {% for worker in workers %}
+        <div class="flex items-center justify-between gap-3 rounded-xl p-3"
+             style="background: var(--paper); border: 1px solid var(--hairline);">
+          <div>
+            <div class="text-xs font-semibold text-ink">{{ worker.name }}</div>
+            <div class="text-[11px] text-mac-secondary">{{ worker.detail }}</div>
+          </div>
+          <span class="chip {% if worker.state == 'configured' or 'аккаунт' in worker.state %}chip-good{% else %}chip-warn{% endif %} text-[11px]">
+            {{ worker.state }}
+          </span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>

@@ -1,0 +1,278 @@
+{#
+  Apple macOS HIG: Media Step Result (Photos, Videos, OCR & Fallback Generation)
+#}
+<div class="space-y-4">
+  <div class="flex items-center justify-between text-[11px] font-semibold text-mac-secondary uppercase tracking-wider">
+    <span>Медиаматериалы сюжета ({{ images | length }}{% if web_images %} + {{ web_images | length }} из СМИ{% endif %})</span>
+    {% if fallback_needed %}
+      <span class="mac-pill mac-pill-warn font-semibold">Требуется генерация ИИ</span>
+    {% else %}
+      <span class="mac-pill mac-pill-good font-semibold">Готово к публикации</span>
+    {% endif %}
+  </div>
+
+  {# 1. Telegram & Direct Channel Media #}
+  {% if not images %}
+    <div class="rounded-xl bg-[#FAFAFA] border border-black/[0.04] p-4 text-xs text-mac-secondary text-center space-y-2">
+      <p>У сообщений этого сюжета нет прикреплённых фотографий или видео из Telegram.</p>
+    </div>
+  {% else %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {% for img in images %}
+        <div class="rounded-xl border border-black/[0.08] bg-white p-3 text-xs space-y-2 shadow-2xs">
+          {# Media preview (img or video) #}
+          <div class="relative rounded-lg overflow-hidden bg-black/[0.04] aspect-video flex items-center justify-center">
+            {% if img.type == "video" %}
+              {% if img.vk_embed_url %}
+                {# VK player already uploaded — embed live #}
+                <iframe src="{{ img.vk_embed_url }}"
+                        class="w-full h-full"
+                        allow="encrypted-media; fullscreen; picture-in-picture"
+                        allowfullscreen
+                        frameborder="0"></iframe>
+              {% else %}
+                {# Video player with on-demand streaming endpoint /lab/media/video/{post_id} #}
+                <div class="relative w-full h-full bg-black flex items-center justify-center">
+                  <video controls preload="metadata" class="w-full h-full object-contain" poster="">
+                    <source src="/api/ui/lab/media/video/{{ img.post_id }}" type="video/mp4">
+                    {% if img.video_url %}
+                      <source src="{{ img.video_url }}" type="video/mp4">
+                    {% endif %}
+                    {% if img.url and img.url.startswith('http') and 't.me' not in img.url %}
+                      <source src="{{ img.url }}" type="video/mp4">
+                    {% endif %}
+                    Ваш браузер не поддерживает видео.
+                  </video>
+                  {% if img.post_url or img.url %}
+                    <a href="{{ img.post_url or img.url }}" target="_blank" rel="noopener noreferrer"
+                       class="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/90 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-sm flex items-center gap-1 transition-all" title="Открыть в Telegram">
+                      <span>Telegram</span> <span>↗</span>
+                    </a>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+
+            {% elif img.url %}
+              {# Photo — clickable lightbox via server proxy #}
+              <a href="/api/ui/lab/media/web-image?url={{ img.url | urlencode }}" target="_blank" rel="noopener noreferrer" class="w-full h-full block cursor-zoom-in" title="Открыть оригинал">
+                <img src="{{ img.url }}" class="w-full h-full object-cover" alt="Медиа сюжета" loading="lazy">
+              </a>
+              {% if img.verdict == "watermark_corner" %}
+                {# Safe crop frame visualization -15% #}
+                <div class="absolute inset-x-0 bottom-0 h-[15%] border-t-2 border-dashed border-amber-400 bg-amber-500/20 flex items-center justify-center text-[9px] text-amber-900 font-bold backdrop-blur-2xs">
+                  Зона безопасного кропа (-15%)
+                </div>
+              {% endif %}
+              {% if img.source_name %}
+                <div class="absolute top-1.5 left-1.5">
+                  <span class="mac-pill mac-pill-neutral text-[9px] font-medium backdrop-blur-md bg-black/60 text-white border-0">{{ img.source_name }}</span>
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="text-[11px] text-mac-secondary font-mono">Превью недоступно</div>
+            {% endif %}
+          </div>
+
+          {# Status badge & verdict #}
+          <div class="space-y-1 pt-0.5">
+            <div class="flex flex-wrap items-center justify-between gap-1.5 min-w-0">
+              <span class="font-semibold text-mac-ink shrink-0">Медиа #{{ img.index }}</span>
+              <span class="mac-pill mac-pill-{{ img.badge_type }} text-[10px] font-semibold whitespace-normal leading-tight text-right max-w-full">
+                {{ img.badge_label }}
+              </span>
+            </div>
+            <p class="text-[11px] text-mac-secondary leading-snug">
+              {{ img.reason }}
+            </p>
+
+            {# VK Video Upload — video cards only #}
+            {% if img.type == "video" and not img.vk_embed_url %}
+              <div id="vk-upload-zone-{{ img.index }}" class="pt-1">
+                <button type="button"
+                        hx-post="/api/ui/lab/cluster/{{ cluster_id }}/video/{{ img.post_id }}/upload-to-vk"
+                        hx-target="#vk-upload-zone-{{ img.index }}"
+                        hx-swap="outerHTML"
+                        hx-indicator="#vk-upload-spin-{{ img.index }}"
+                        class="rounded-lg bg-[#07F] text-white px-3 py-1.5 text-[11px] font-semibold hover:bg-[#005EC4] transition-colors shadow-2xs flex items-center gap-1.5 w-full justify-center">
+                  <span>⬆️ Загрузить в VK Video</span>
+                </button>
+                <div id="vk-upload-spin-{{ img.index }}" class="htmx-indicator text-[10px] text-mac-secondary flex items-center gap-1 mt-1">
+                  <svg class="w-3 h-3 animate-spin text-[#07F]" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                  <span>Скачиваем и загружаем видео в VK…</span>
+                </div>
+              </div>
+            {% elif img.type == "video" and img.vk_embed_url %}
+              <div class="pt-1">
+                <span class="mac-pill mac-pill-good text-[10px] font-semibold">✅ Загружено в VK Video</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# 2. Web Research Media (from external news articles og:image) #}
+  {% if web_images %}
+    <div class="rounded-xl border border-black/[0.08] bg-white p-3.5 space-y-2.5 shadow-2xs">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5 text-xs font-semibold text-mac-ink">
+          <span>🌐 Репортажные фото из веб-источников СМИ ({{ web_images | length }})</span>
+        </div>
+        <span class="mac-pill mac-pill-info text-[10px]">Внешний ресерч</span>
+      </div>
+      <p class="text-[11px] text-mac-secondary">Фотографии, извлечённые из найденных первоисточников СМИ без водяных знаков каналов Telegram.</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 pt-1">
+        {% for wimg in web_images %}
+          <div class="web-img-card rounded-lg border border-black/[0.06] bg-[#FAFAFA] overflow-hidden text-xs space-y-1.5 group hover:border-[#0071E3]/40 transition-all flex flex-col justify-between" id="web-img-{{ loop.index }}">
+            <div>
+              <div class="relative aspect-video bg-black/[0.04] overflow-hidden">
+              <a href="/api/ui/lab/media/web-image?url={{ wimg.url | urlencode }}" target="_blank" rel="noopener noreferrer" class="block w-full h-full cursor-zoom-in" title="Открыть оригинал">
+                <img src="/api/ui/lab/media/web-image?url={{ wimg.url | urlencode }}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" alt="{{ wimg.title }}" loading="lazy" onerror="this.onerror=null;this.src='{{ wimg.url }}';">
+              </a>
+                <div class="absolute top-1 left-1">
+                  <span class="mac-pill mac-pill-neutral text-[9px] font-medium backdrop-blur-md bg-black/60 text-white border-0">{{ wimg.domain }}</span>
+                </div>
+                <div class="absolute top-1 right-1">
+                  {% if wimg.clean_verdict and 'Одобрено' in wimg.clean_verdict %}
+                    <span class="mac-pill text-[8.5px] font-semibold backdrop-blur-md bg-emerald-600/90 text-white border-0">🟢 ИИ: Одобрено</span>
+                  {% elif wimg.kind == 'infographic' %}
+                    <span class="mac-pill text-[8.5px] font-semibold backdrop-blur-md bg-amber-600/90 text-white border-0">📊 Таблица/График</span>
+                  {% elif wimg.kind == 'logo' %}
+                    <span class="mac-pill text-[8.5px] font-semibold backdrop-blur-md bg-neutral-700/90 text-white border-0">🏷 Логотип</span>
+                  {% else %}
+                    <span class="mac-pill text-[8.5px] font-semibold backdrop-blur-md bg-emerald-600/90 text-white border-0">📸 Фото</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="p-2 pt-1.5 space-y-1">
+                <p class="text-[11px] font-medium text-mac-ink line-clamp-2 leading-tight" title="{{ wimg.title }}">{{ wimg.title }}</p>
+                {% if wimg.clean_verdict %}
+                  <p class="text-[10px] text-emerald-700 font-medium line-clamp-1" title="{{ wimg.clean_verdict }}">✓ {{ wimg.clean_verdict }}</p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="p-2 pt-0 flex items-center justify-between border-t border-black/[0.04] mt-1">
+              <button type="button"
+                      onclick="selectWebCover(this, '{{ wimg.url }}')"
+                      class="btn-select-cover rounded-md bg-white border border-black/[0.1] px-2 py-1 text-[10px] font-semibold text-mac-ink hover:bg-blue-50 hover:text-[#0071E3] hover:border-blue-200 transition-colors flex items-center gap-1 shadow-2xs">
+                <span>⭐ На обложку</span>
+              </button>
+              <button type="button"
+                      onclick="document.getElementById('web-img-{{ loop.index }}').remove();"
+                      class="text-neutral-400 hover:text-red-500 p-1 text-[11px] transition-colors" title="Скрыть фото">
+                ✕ Скрыть
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {# 2.1 Rejected Web Images (AI Filtered Off-topic) #}
+  {% if rejected_web_images %}
+    <details class="rounded-xl border border-rose-200/80 bg-rose-50/40 p-3 text-xs space-y-2 group">
+      <summary class="font-semibold text-rose-800 flex items-center justify-between cursor-pointer select-none">
+        <span class="flex items-center gap-1.5">
+          <span>🚫 Отклонено ИИ как оффтопик ({{ rejected_web_images | length }})</span>
+        </span>
+        <span class="text-[11px] font-normal text-rose-600 group-open:rotate-180 transition-transform">▼</span>
+      </summary>
+      <p class="text-[11px] text-rose-700/80 pt-1">
+        ИИ проанализировал найденные в сети изображения и отсеял телеведущих в студии, случайные автомобили и нерелевантные разделы.
+      </p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 pt-1">
+        {% for rimg in rejected_web_images %}
+          <div class="rounded-lg border border-rose-200 bg-white p-2 text-[10.5px] space-y-1.5 opacity-75 hover:opacity-100 transition-opacity">
+            <div class="relative aspect-video bg-black/[0.04] rounded overflow-hidden">
+              <img src="/api/ui/lab/media/web-image?url={{ rimg.url | urlencode }}" class="w-full h-full object-cover grayscale-50" alt="{{ rimg.title }}" loading="lazy" onerror="this.onerror=null;this.src='{{ rimg.url }}';">
+              <span class="absolute top-1 left-1 mac-pill mac-pill-warn text-[8px] border-0 bg-rose-600/90 text-white">Оффтопик</span>
+            </div>
+            <p class="font-medium text-rose-900 line-clamp-1" title="{{ rimg.title }}">{{ rimg.title }}</p>
+            <p class="text-[10px] text-rose-700 font-mono line-clamp-2" title="{{ rimg.clean_verdict }}">{{ rimg.clean_verdict or "Не относится к теме новости" }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+
+  {# Generation Error Alert if applicable #}
+  {% if generation_error %}
+    <div class="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 space-y-1.5 shadow-2xs">
+      <div class="font-semibold flex items-center gap-1.5 text-amber-800">
+        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span>Обложка не сгенерирована</span>
+      </div>
+      <p class="text-amber-800/90 leading-relaxed">{{ generation_error }}</p>
+      <div class="pt-0.5">
+        <a href="/settings/ai" class="inline-flex items-center gap-1 font-semibold text-[#0071E3] hover:underline">
+          Перейти к настройке провайдеров и моделей ИИ →
+        </a>
+      </div>
+    </div>
+  {% endif %}
+
+  {# 3. Fallback Image Generation Block with Editorial Prompt #}
+  <div class="rounded-xl border border-black/[0.08] bg-[#FAFAFA] p-3.5 space-y-2.5">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5 text-xs font-semibold text-mac-ink">
+        <span>🎨 Fallback-генерация иллюстрации (Flux Schnell / Imagen 3)</span>
+      </div>
+      <span class="mac-pill mac-pill-neutral text-[10px]">Репортажный английский промт</span>
+    </div>
+
+    <form hx-post="/api/ui/lab/cluster/{{ cluster_id }}/generate-image"
+          hx-target="#step-media-container"
+          hx-swap="innerHTML"
+          hx-indicator="#gen-img-spinner"
+          class="space-y-2">
+      <textarea id="media-prompt-input" name="prompt" rows="3"
+                class="w-full rounded-lg border border-black/[0.12] bg-white p-2.5 text-xs text-mac-ink focus:border-[#0071E3] focus:outline-none leading-relaxed resize-y break-words"
+                placeholder="Промт для генерации обложки…">{{ suggested_prompt or fallback_prompt }}</textarea>
+
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <button type="submit"
+                  class="rounded-lg bg-[#0071E3] text-white px-3 py-1.5 text-xs font-semibold hover:bg-[#0077ED] transition-colors shadow-2xs flex items-center gap-1.5">
+            <span>✨ Сгенерировать обложку</span>
+          </button>
+
+          <button type="button"
+                  hx-post="/api/ui/lab/cluster/{{ cluster_id }}/regenerate-prompt"
+                  hx-target="#media-prompt-input"
+                  hx-swap="outerHTML"
+                  hx-indicator="#regen-prompt-spinner"
+                  class="rounded-lg border border-black/[0.12] bg-white text-mac-ink px-2.5 py-1.5 text-xs font-medium hover:bg-black/[0.03] transition-colors flex items-center gap-1">
+            <span>🪄 Перегенерировать промт ИИ</span>
+          </button>
+        </div>
+
+        <div id="gen-img-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 animate-spin text-[#0071E3]" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Генерация обложки…</span>
+        </div>
+
+        <div id="regen-prompt-spinner" class="htmx-indicator text-xs text-mac-secondary flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 animate-spin text-purple-600" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Составление сцены ИИ…</span>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
