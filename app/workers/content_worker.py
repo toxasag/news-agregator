@@ -68,7 +68,7 @@ from arq.connections import RedisSettings
 from arq.cron import CronJob
 from arq.typing import StartupShutdown, WorkerCoroutine
 from redis.asyncio import Redis
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, undefer
@@ -623,10 +623,6 @@ async def _judge_source_image(  # noqa: PLR0911
         except Exception as exc:  # noqa: BLE001
             outcome.warn(f"watermark crop failed: {exc}")
 
-    if verdict.get("needs_ai_generation"):
-        outcome.warn("watermark is too intrusive to keep; falling back to generation")
-        return None
-
     if allow_watermarked:
         return _CoverImage(
             content=content,
@@ -636,6 +632,10 @@ async def _judge_source_image(  # noqa: PLR0911
             source_url=source_url,
             source_label=source_label,
         )
+
+    if verdict.get("needs_ai_generation"):
+        outcome.warn("watermark is too intrusive to keep; falling back to generation")
+        return None
 
     return _CoverImage(
         content=content,
@@ -677,13 +677,15 @@ async def _generate_cover(
     )
 
 
-async def _salvage_enrichment_image(
+async def _salvage_enrichment_images(
     client: httpx.AsyncClient,
     enrichment_data: Mapping[str, Any] | None,
-) -> _CoverImage | None:
-    """Use a verified clean web image from enrichment_data when Telegram has none."""
-    if not enrichment_data:
-        return None
+    *,
+    limit: int = MAX_SOURCE_IMAGES,
+) -> list[_CoverImage]:
+    """Use verified clean web images from enrichment_data when available."""
+    if not enrichment_data or limit <= 0:
+        return []
     candidate_items: list[dict[str, Any]] = []
     sel = enrichment_data.get("selected_cover_url")
     if isinstance(sel, str) and sel.startswith(("http://", "https://")):
@@ -695,10 +697,24 @@ async def _salvage_enrichment_image(
                 item.get("is_ai_approved") is True or item.get("relevant") is True
             ):
                 url = item.get("url")
-                if isinstance(url, str) and url.startswith(("http://", "https://")):
+                if (
+                    isinstance(url, str)
+                    and url.startswith(("http://", "https://"))
+                    and not any(c.get("url") == url for c in candidate_items)
+                ):
                     candidate_items.append(dict(item))
-    for c_item in candidate_items[:MAX_SOURCE_IMAGES]:
+
+    salvaged: list[_CoverImage] = []
+    seen_urls: set[str] = set()
+
+    for c_item in candidate_items:
+        if len(salvaged) >= limit:
+            break
         url = str(c_item.get("url") or "")
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+
         content, content_type = await _fetch_bytes(
             client, url, limit=MAX_SOURCE_IMAGE_BYTES
         )
@@ -728,16 +744,19 @@ async def _salvage_enrichment_image(
                                     src_label = src_label or title_fallback
                 if not src_label:
                     src_label = "Первоисточник"
-                return _CoverImage(
-                    content=clean_bytes,
-                    content_type=content_type or "image/jpeg",
-                    origin="source",
-                    filename=url.rsplit("/", 1)[-1].split("?")[0] or "cover.jpg",
-                    source_url=src_url,
-                    source_label=src_label,
+                salvaged.append(
+                    _CoverImage(
+                        content=clean_bytes,
+                        content_type=content_type or "image/jpeg",
+                        origin="source",
+                        filename=url.rsplit("/", 1)[-1].split("?")[0] or "cover.jpg",
+                        source_url=src_url,
+                        source_label=src_label,
+                    )
                 )
-            logger.info("Enrichment candidate %s rejected: %s", url, reason)
-    return None
+            else:
+                logger.info("Enrichment candidate %s rejected: %s", url, reason)
+    return salvaged
 
 
 # ruff: noqa: PLR0912, PLR0915
@@ -809,11 +828,20 @@ async def _process_images(
                         seen_hashes.add(img_key)
                         salvaged_images.append(img)
 
-        # 3. Fallback to web research image if no source photos survived
-        if not salvaged_images:
-            web_img = await _salvage_enrichment_image(client, enrichment_data)
-            if web_img is not None:
-                salvaged_images.append(web_img)
+        # 3. Enrich with web research images if we have remaining slots
+        if len(salvaged_images) < MAX_SOURCE_IMAGES:
+            remaining_needed = MAX_SOURCE_IMAGES - len(salvaged_images)
+            web_imgs = await _salvage_enrichment_images(
+                client, enrichment_data, limit=remaining_needed
+            )
+            for w_img in web_imgs:
+                img_key = (
+                    hashlib.sha256(w_img.content[:8192]).hexdigest(),
+                    w_img.filename,
+                )
+                if img_key not in seen_hashes:
+                    seen_hashes.add(img_key)
+                    salvaged_images.append(w_img)
 
     # 4. Final fallback: generate AI cover
     if not salvaged_images:
@@ -1171,6 +1199,32 @@ def _media_strategy(posts: Sequence[RawNews]) -> MediaStrategy:
     return strictest
 
 
+async def _mark_cluster_raw_news_processed(
+    session: AsyncSession, cluster_id: uuid.UUID
+) -> None:
+    """Mark all raw news items affiliated with the cluster as processed."""
+    try:
+        await session.execute(
+            update(RawNews)
+            .where(
+                or_(
+                    RawNews.cluster_id == cluster_id,
+                    RawNews.entities.contains(
+                        {"dedup_matched_cluster_id": str(cluster_id)}
+                    ),
+                ),
+                RawNews.is_processed.is_(False),
+            )
+            .values(is_processed=True)
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to mark raw news for cluster %s as processed: %s",
+            cluster_id,
+            exc,
+        )
+
+
 async def _moderate(
     session: AsyncSession,
     cluster: NewsCluster,
@@ -1212,6 +1266,7 @@ async def _moderate(
         # Marked published so the cluster does not return on every tick. Committed
         # here because this path returns early and would otherwise roll back.
         cluster.is_published = True
+        await _mark_cluster_raw_news_processed(session, cluster.id)
         await session.commit()
         outcome.warn(f"dropped by moderation: {verdict.reason}")
         logger.info("Cluster %s dropped as %s", cluster.id, verdict.risk_level.value)
@@ -1322,16 +1377,40 @@ async def _enrich_and_decorate_draft(
 ) -> None:
     """Apply internal links, inline web images, Schema.org, and Telegram CTA."""
     if not isinstance(session, AsyncSession):
+        # Inject parent_article backlink when decorative HTML is bypassed in unit tests
+        enrichment = dict(cluster.enrichment_data or {})
+        parent_art = enrichment.get("parent_article")
+        if (
+            isinstance(parent_art, dict)
+            and parent_art.get("title")
+            and parent_art.get("url_slug")
+        ):
+            raw_title = str(parent_art["title"])
+            parent_title = raw_title.replace("<", "&lt;").replace(">", "&gt;")
+            p_cat = str(parent_art.get("category") or "novosti-obshhestva")
+            p_slug = str(parent_art["url_slug"])
+            parent_url = f"https://svodka.press/{p_cat}/{p_slug}/"
+            followup_html = (
+                '<p class="svodka-followup text-sm my-4 p-3 bg-blue-50/70 border-l-4 '
+                'border-[#0071E3] rounded-r">'
+                '<strong>Ранее по теме:</strong> '
+                f'<a href="{parent_url}" '
+                f'class="text-[#0071E3] hover:underline font-medium">'
+                f'{parent_title}</a>'
+                '</p>'
+            )
+            old_html = str(reviewed.get("content_html") or "")
+            reviewed["content_html"] = f"{old_html}\n{followup_html}"
         return
     try:
-        from app.services.content_prompts import (  # noqa: PLC0415
-            extract_faq_from_html,
-            generate_schema_org_json_ld,
-        )
         from app.services.image_cleaner import inject_article_images  # noqa: PLC0415
         from app.services.lab_pipeline import (  # noqa: PLC0415
             _ensure_sources_block,
             _inject_internal_links,
+        )
+        from app.services.schema_org import (  # noqa: PLC0415
+            extract_faq_from_html,
+            generate_schema_org_json_ld,
         )
 
         enrichment = dict(cluster.enrichment_data or {})
@@ -1353,13 +1432,38 @@ async def _enrich_and_decorate_draft(
         html_with_imgs = inject_article_images(
             html_with_links, body_imgs, layout="inline"
         )
+        cat_slug = str(reviewed.get("category_slug") or cluster.category)
+
+        # Inject editorial backlink to parent article for story developments/follow-ups
+        parent_art = enrichment.get("parent_article")
+        if (
+            isinstance(parent_art, dict)
+            and parent_art.get("title")
+            and parent_art.get("url_slug")
+        ):
+            raw_title = str(parent_art["title"])
+            parent_title = raw_title.replace("<", "&lt;").replace(">", "&gt;")
+            p_cat = str(parent_art.get("category") or cat_slug or "novosti-obshhestva")
+            p_slug = str(parent_art["url_slug"])
+            parent_url = f"https://svodka.press/{p_cat}/{p_slug}/"
+            followup_html = (
+                '<p class="svodka-followup text-sm my-4 p-3 bg-blue-50/70 border-l-4 '
+                'border-[#0071E3] rounded-r">'
+                '<strong>Ранее по теме:</strong> '
+                f'<a href="{parent_url}" '
+                f'class="text-[#0071E3] hover:underline font-medium">'
+                f'{parent_title}</a>'
+                '</p>'
+            )
+            # Inject right before sources block or append
+            html_with_imgs = f"{html_with_imgs}\n{followup_html}"
+
         reviewed["content_html"] = _ensure_sources_block(
             html_with_imgs,
             web_sources if isinstance(web_sources, list) else [],
             raw_posts=posts,
         )
         faq_items = extract_faq_from_html(html_with_links)
-        cat_slug = str(reviewed.get("category_slug") or cluster.category)
         slug_val = _unique_slug(
             str(reviewed.get("title") or cluster.title), cluster.id
         )
@@ -1666,8 +1770,14 @@ async def _find_duplicate_article(  # noqa: PLR0911
     posts: Sequence[RawNews],
     *,
     title_override: str | None = None,
-) -> tuple[Article | None, str]:
-    """Find if an article covering this event was published in 48h."""
+) -> tuple[Article | None, str, bool]:
+    """Find if an article covering this event was published in 48h.
+
+    Returns:
+        (matching_article, match_reason, is_followup)
+        When is_followup is True, this is a legitimate story update/follow-up
+        (published >= 2.0 hours ago with fresh facts or developments).
+    """
     from datetime import timedelta  # noqa: PLC0415
 
     cutoff = datetime.now(UTC) - timedelta(hours=48)
@@ -1681,15 +1791,43 @@ async def _find_duplicate_article(  # noqa: PLR0911
     result = await session.execute(stmt)
     recent_articles = list(result.scalars().all())
     if not recent_articles:
-        return None, ""
+        return None, "", False
 
     c_title = (title_override or cluster.title or "").strip()
     c_stems = _extract_title_stems(c_title)
 
     # When checking cluster before generation, also include entity stems from lead text
+    lead_entities: set[str] = set()
     if not title_override and posts and posts[0].raw_text:
         lead_stems = _extract_title_stems(posts[0].raw_text[:300])
-        c_stems.update({s for s in lead_stems if len(s) >= 6 and not s.isdigit()})
+        lead_entities = {s for s in lead_stems if len(s) >= 6 and not s.isdigit()}
+        c_stems.update(lead_entities)
+
+    def _assess_followup(candidate_art: Article, shared_stems: set[str]) -> bool:
+        """Determine whether candidate is old enough and new cluster has fresh facts."""
+        art_time = candidate_art.published_at or candidate_art.created_at
+        if art_time is None:
+            return False
+        if art_time.tzinfo is None:
+            art_time = art_time.replace(tzinfo=UTC)
+        age_hours = (datetime.now(UTC) - art_time).total_seconds() / 3600.0
+        # Only allow follow-up if at least 2.0 hours have passed since the original story
+        if age_hours < 2.0:
+            return False
+
+        a_title = (candidate_art.title or "").strip()
+        a_stems = _extract_title_stems(a_title)
+        novel_stems = c_stems - a_stems
+        novel_sig = {s for s in novel_stems if len(s) >= 4 and not s.isdigit()}
+        novel_entities = {s for s in novel_stems if len(s) >= 6 and not s.isdigit()}
+        # Follow-up qualification:
+        # At least 2 new significant stems OR at least 1 new entity stem,
+        # provided title is not an exact stem clone (Jaccard < 0.70)
+        stem_union = c_stems | a_stems
+        stem_jaccard = len(shared_stems) / len(stem_union) if stem_union else 0.0
+        return bool(
+            stem_jaccard < 0.70 and (len(novel_sig) >= 2 or len(novel_entities) >= 1)
+        )
 
     # 1. Fast lexical title stem overlap
     if c_stems:
@@ -1718,9 +1856,11 @@ async def _find_duplicate_article(  # noqa: PLR0911
                 or matches_very_rare
             ):
                 m_words = list(intersection)[:4]
+                is_fol = _assess_followup(art, intersection)
                 return (
                     art,
                     f"lexical stem match (jaccard={jaccard:.2f}, shared_stems={m_words})",
+                    is_fol,
                 )
 
     # 2. Semantic vector cosine similarity check via pgvector
@@ -1748,21 +1888,28 @@ async def _find_duplicate_article(  # noqa: PLR0911
                     for row in res_vec.all():
                         art, dist = row[0], float(row[1])
                         sim = 1.0 - dist
+                        a_stems = _extract_title_stems(art.title or "")
+                        shared_stems = c_stems & a_stems
                         if sim >= 0.75:
-                            return art, f"semantic pgvector match (sim={sim:.3f})"
-                        if sim >= 0.65:
-                            a_stems = _extract_title_stems(art.title or "")
-                            if (c_stems & a_stems) or (
-                                len(c_stems & a_stems) / len(c_stems | a_stems) >= 0.12
+                            is_fol = _assess_followup(art, shared_stems)
+                            return art, f"semantic pgvector match (sim={sim:.3f})", is_fol
+                        has_overlap = bool(
+                            shared_stems
+                            or (
+                                len(shared_stems) / len(c_stems | a_stems) >= 0.12
                                 if (c_stems | a_stems)
                                 else False
-                            ):
-                                shared = list(c_stems & a_stems)[:3]
-                                return (
-                                    art,
-                                    f"semantic match with lexical overlap "
-                                    f"(sim={sim:.3f}, shared={shared})",
-                                )
+                            )
+                        )
+                        if sim >= 0.65 and has_overlap:
+                            shared = list(shared_stems)[:3]
+                            is_fol = _assess_followup(art, shared_stems)
+                            return (
+                                art,
+                                f"semantic match with lexical overlap "
+                                f"(sim={sim:.3f}, shared={shared})",
+                                is_fol,
+                            )
                 except Exception as pg_exc:  # noqa: BLE001
                     logger.debug("pgvector direct query skipped: %s", pg_exc)
 
@@ -1781,21 +1928,24 @@ async def _find_duplicate_article(  # noqa: PLR0911
                         if norm_a > 0:
                             a_vec /= norm_a
                             sim = float(np.dot(q_vec, a_vec))
+                            a_stems = _extract_title_stems(art.title or "")
+                            shared_stems = c_stems & a_stems
                             if sim >= 0.75:
-                                return art, f"semantic match (sim={sim:.3f})"
-                            if sim >= 0.65:
-                                a_stems = _extract_title_stems(art.title or "")
-                                if c_stems & a_stems:
-                                    shared = list(c_stems & a_stems)[:3]
-                                    return (
-                                        art,
-                                        f"semantic match with lexical overlap "
-                                        f"(sim={sim:.3f}, shared={shared})",
-                                    )
+                                is_fol = _assess_followup(art, shared_stems)
+                                return art, f"semantic match (sim={sim:.3f})", is_fol
+                            if sim >= 0.65 and shared_stems:
+                                shared = list(shared_stems)[:3]
+                                is_fol = _assess_followup(art, shared_stems)
+                                return (
+                                    art,
+                                    f"semantic match with lexical overlap "
+                                    f"(sim={sim:.3f}, shared={shared})",
+                                    is_fol,
+                                )
         except Exception as exc:  # noqa: BLE001
             logger.debug("Duplicate embedding check skipped: %s", exc)
 
-    return None, ""
+    return None, "", False
 
 
 async def process_cluster(  # noqa: PLR0911
@@ -1827,6 +1977,7 @@ async def process_cluster(  # noqa: PLR0911
         )
         if not lock_ok:
             cluster.is_published = True
+            await _mark_cluster_raw_news_processed(session, cid)
             await session.commit()
             outcome.status = "skipped"
             outcome.warn(f"concurrent generation guard: {lock_reason}")
@@ -1835,26 +1986,51 @@ async def process_cluster(  # noqa: PLR0911
     except Exception as lock_err:  # noqa: BLE001
         logger.debug("Redis event lock check failed: %s", lock_err)
 
-    # --- Step 1.2: Cross-Article Duplicate Guard (Zero Duplicates Policy)
-    dup_art, dup_reason = await _find_duplicate_article(session, cluster, posts)
+    # --- Step 1.2: Cross-Article Duplicate Guard & Follow-up Detection
+    dup_art, dup_reason, is_followup = await _find_duplicate_article(
+        session, cluster, posts
+    )
+    parent_article_info: dict[str, Any] | None = None
     if dup_art is not None:
-        cluster.is_published = True
-        await session.commit()
-        outcome.status = "skipped"
-        outcome.warn(
-            f"duplicate of Article #{dup_art.id} ('{dup_art.title[:40]}'): {dup_reason}"
-        )
-        logger.info(
-            "Cluster %s dropped as duplicate of Article #%s (%s): %s",
-            cid,
-            dup_art.id,
-            dup_art.title[:60],
-            dup_reason,
-        )
-        return outcome
+        if is_followup:
+            parent_article_info = {
+                "id": dup_art.id,
+                "title": dup_art.title,
+                "url_slug": dup_art.url_slug,
+                "category": dup_art.category,
+            }
+            enrichment_data = dict(cluster.enrichment_data or {})
+            enrichment_data["parent_article"] = parent_article_info
+            cluster.enrichment_data = enrichment_data
+            logger.info(
+                "Cluster %s accepted as follow-up to Article #%s ('%s'): %s",
+                cid,
+                dup_art.id,
+                dup_art.title[:60],
+                dup_reason,
+            )
+        else:
+            cluster.is_published = True
+            await _mark_cluster_raw_news_processed(session, cid)
+            await session.commit()
+            outcome.status = "skipped"
+            outcome.warn(
+                f"duplicate of Article #{dup_art.id} ('{dup_art.title[:40]}'): "
+                f"{dup_reason}"
+            )
+            logger.info(
+                "Cluster %s dropped as duplicate of Article #%s (%s): %s",
+                cid,
+                dup_art.id,
+                dup_art.title[:60],
+                dup_reason,
+            )
+            return outcome
 
     await _ensure_cluster_web_research(session, cluster, posts, cid)
     base_payload = _build_cluster_payload(cluster, posts)
+    if parent_article_info:
+        base_payload["parent_article"] = parent_article_info
     sources_text = _sources_text(posts)
 
     # --- Step 1.5: moderation, before any writer call.
@@ -1865,6 +2041,8 @@ async def process_cluster(  # noqa: PLR0911
     payload, promoted_project = await _prepare_studio_aligned_payload(
         session, cluster, posts, sources_text, base_payload
     )
+    if parent_article_info and "parent_article" not in payload:
+        payload["parent_article"] = parent_article_info
     try:
         write_route = await _invoke_writer_for_cluster(
             session, cluster, payload, risk=risk, promoted_project=promoted_project
@@ -1885,25 +2063,33 @@ async def process_cluster(  # noqa: PLR0911
     # --- Step 3.5: Post-Generation Cross-Article Duplicate Guard (Final Title Check)
     final_title = str(reviewed.get("title") or "")
     if final_title:
-        post_dup, post_dup_reason = await _find_duplicate_article(
+        post_dup, post_dup_reason, post_is_followup = await _find_duplicate_article(
             session, cluster, posts, title_override=final_title
         )
         if post_dup is not None:
-            cluster.is_published = True
-            await session.commit()
-            outcome.status = "skipped"
-            outcome.warn(
-                f"post-generation duplicate of Article #{post_dup.id} "
-                f"('{post_dup.title[:30]}'): {post_dup_reason}"
+            # If recognized as a follow-up of post_dup (or previous parent), allow it
+            is_same_as_parent = (
+                parent_article_info is not None
+                and parent_article_info.get("id") == post_dup.id
             )
-            logger.info(
-                "Cluster %s dropped post-generation as duplicate of Article #%s (%s): %s",
-                cid,
-                post_dup.id,
-                post_dup.title[:60],
-                post_dup_reason,
-            )
-            return outcome
+            if not post_is_followup and not is_same_as_parent:
+                cluster.is_published = True
+                await _mark_cluster_raw_news_processed(session, cid)
+                await session.commit()
+                outcome.status = "skipped"
+                outcome.warn(
+                    f"post-generation duplicate of Article #{post_dup.id} "
+                    f"('{post_dup.title[:30]}'): {post_dup_reason}"
+                )
+                logger.info(
+                    "Cluster %s dropped post-generation as duplicate of "
+                    "Article #%s (%s): %s",
+                    cid,
+                    post_dup.id,
+                    post_dup.title[:60],
+                    post_dup_reason,
+                )
+                return outcome
 
     # --- Step 4: embed the final text.
     embedding: list[float] | None = None
@@ -1940,6 +2126,7 @@ async def process_cluster(  # noqa: PLR0911
         embedding=embedding,
     )
     session.add(article)
+    await _mark_cluster_raw_news_processed(session, cid)
     try:
         await session.commit()
     except SQLAlchemyError as exc:

@@ -138,7 +138,7 @@ WordPress по умолчанию может отбрасывать метапо
 - **Двухрежимный `infinite-scroll.js` (`IntersectionObserver`, 0 зависимостей):**
   - В режиме статьи (`data-stream-mode="single"`) за 700px до конца материала подгружает следующую новость одна за одной без перезагрузки страницы, обновляет URL через `history.pushState` и отправляет честные виртуальные просмотры в Яндекс.Метрику (`106439629`) и GA4.
   - В режиме главной/рубрики (`data-stream-mode="archive"`) бесшовно подгружает следующие страницы карточек ленты вместе с нативными промо-карточками.
-- **Авто-починка пустых обложек и чистого JSON-LD:** фильтр `svodka_setka_repair_featured_figure` убирает пустые теги `<figure class="svodka-featured"><img src=""></figure>`, а фильтр `svodka_setka_unwrap_json_ld` снимает обёртку `<p>` вокруг `<script type="application/ld+json">`, которую добавляет стандартный `wpautop`.
+- **Авто-починка пустых обложек и чистого JSON-LD:** фильтр `svodka_setka_repair_featured_figure` убирает пустые теги `<figure class="svodka-featured"><img src=""></figure>`, а фильтр `svodka_setka_unwrap_and_clean_json_ld` снимает обёртку `<p>` вокруг `<script type="application/ld+json">`, которую добавляет стандартный `wpautop`, а также вырезает рудиментарный блок `aggregateRating` из микроразметки `NewsArticle` во избежание ошибок «Недопустимый тип объекта в поле <parent_node>» в Google Search Console (версия темы `svodka-setka` v2.53.1).
 
 ### 1.8 Ручное подтверждение публикации (Human-in-the-Loop)
 

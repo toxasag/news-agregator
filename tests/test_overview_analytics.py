@@ -1,8 +1,10 @@
+# ruff: noqa: E501
 """Unit tests for the overview analytics service and data models."""
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -16,6 +18,7 @@ from app.services.overview_analytics import (
     ProviderSpendRow,
     RoleSpendRow,
     _format_day_label,
+    _load_summary_cards,
     humanize_failure_reason,
 )
 
@@ -149,3 +152,19 @@ def test_overview_data_structures() -> None:
     assert data.timeline[0].dedup_pct == 70.0
     assert len(data.failures) == 1
     assert data.ai_radar.total_cost_rub == 142.5
+
+
+@pytest.mark.asyncio
+async def test_load_summary_cards_query_structure() -> None:
+    session = AsyncMock()
+    # 1. raw_total, 2. clusters_total, 3. articles_total, 4. sources_total, 5. unprocessed, 6. articles_published_total
+    session.scalar.side_effect = [1000, 200, 150, 10, 42, 120]
+    cards = await _load_summary_cards(session)
+    assert cards["raw_news_total"] == 1000
+    assert cards["clusters_total"] == 200
+    assert cards["articles_total"] == 150
+    assert cards["sources_total"] == 10
+    assert cards["raw_news_unprocessed"] == 42
+    assert cards["articles_published_total"] == 120
+    assert session.scalar.call_count == 6
+

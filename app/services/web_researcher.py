@@ -36,6 +36,7 @@ __all__ = [
     "classify_web_image",
     "conduct_web_research",
     "evaluate_article_relevance",
+    "extract_background_search_query",
     "extract_search_query",
     "fetch_clean_article",
     "is_safe_web_url",
@@ -599,6 +600,37 @@ def extract_search_query(title: str, fallback_text: str = "") -> str:
     return query or first_sentence[:60].strip()
 
 
+def extract_background_search_query(title: str, fallback_text: str = "") -> str:
+    """Generate a secondary query targeting the historical roots, background, or causes of the story.
+
+    Extracts named entities or key nouns and appends background/context intent markers.
+    """
+    clean_title = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\ufe0f]", " ", title or "").strip()
+    entities, keywords = _extract_entities_and_terms(f"{clean_title} {fallback_text[:400]}")
+
+    # Prioritize entities (names, brands, organizations) then strong keywords
+    chosen_terms: list[str] = []
+    for ent in entities:
+        if len(ent) >= 3 and ent not in chosen_terms:
+            chosen_terms.append(ent)
+            if len(chosen_terms) >= 3:
+                break
+
+    if len(chosen_terms) < 2:
+        for kw in keywords:
+            if len(kw) >= 4 and kw not in chosen_terms:
+                chosen_terms.append(kw)
+                if len(chosen_terms) >= 4:
+                    break
+
+    core = " ".join(chosen_terms).strip()
+    if not core:
+        core = extract_search_query(title, fallback_text)
+
+    # Return targeted query for history, investigations, or context
+    return f"{core} предыстория подробности контекст".strip()
+
+
 
 def _heuristic_extract_facts(text: str, max_facts: int = 4) -> list[str]:
     """Extract factual sentences without spending LLM tokens."""
@@ -678,17 +710,38 @@ async def conduct_web_research(
         )
     except DuckDuckGoSearchError as exc:
         logger.warning("DuckDuckGo search error for %r: %s", search_query, exc)
+        search_results = []
+
+    # Layer 2: Deep background / prehistory search query
+    bg_query = extract_background_search_query(query_or_title, fallback_text)
+    bg_results: list[SearchResult] = []
+    if bg_query and bg_query != search_query:
+        try:
+            bg_results = await search_duckduckgo(bg_query, max_results=8)
+        except DuckDuckGoSearchError as exc:
+            logger.debug("DuckDuckGo background search error for %r: %s", bg_query, exc)
+
+    # Combine results with primary breaking results first
+    combined_search_results = list(search_results)
+    seen_urls_raw = {r.url.split("#")[0].rstrip("/") for r in search_results}
+    for b_res in bg_results:
+        clean_bg_url = b_res.url.split("#")[0].rstrip("/")
+        if clean_bg_url not in seen_urls_raw:
+            seen_urls_raw.add(clean_bg_url)
+            combined_search_results.append(b_res)
+
+    if not combined_search_results:
         return WebResearchReport(
             search_query=search_query,
             sources=[],
             background_facts=[],
             is_success=False,
-            error_message=f"Ошибка поиска: {exc}",
+            error_message="Ошибка поиска: не удалось получить результаты",
         )
 
     # Allow scanning more candidates so relevance filtering picks best matching articles
-    candidate_limit = max_sources * 2
-    candidates = _filter_candidates(search_results, candidate_limit)
+    candidate_limit = max_sources * 3
+    candidates = _filter_candidates(combined_search_results, candidate_limit)
 
     if not candidates:
         logger.info("Web research: no suitable news sources found for %r", search_query)
@@ -754,7 +807,7 @@ async def conduct_web_research(
             url=candidate.url,
             domain=domain,
             snippet=candidate.snippet,
-            extracted_text=extracted_text[:600] if extracted_text else candidate.snippet,
+            extracted_text=extracted_text[:2500] if extracted_text else candidate.snippet,
             key_facts=facts,
             image_url=lead_img,
             image_kind=img_kind,

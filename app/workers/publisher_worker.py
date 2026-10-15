@@ -445,11 +445,27 @@ async def _publish_to_wordpress(
             publication.wp_post_id = post.post_id
             publication.wp_post_url = post.link
             if isinstance(session, AsyncSession) and article.cluster_id:
+                from sqlalchemy import or_, update  # noqa: PLC0415
+
                 from app.models.cluster import NewsCluster  # noqa: PLC0415
+                from app.models.raw_news import RawNews  # noqa: PLC0415
 
                 cluster_row = await session.get(NewsCluster, article.cluster_id)
                 if cluster_row is not None:
                     cluster_row.is_published = True
+                await session.execute(
+                    update(RawNews)
+                    .where(
+                        or_(
+                            RawNews.cluster_id == article.cluster_id,
+                            RawNews.entities.contains(
+                                {"dedup_matched_cluster_id": str(article.cluster_id)}
+                            ),
+                        ),
+                        RawNews.is_processed.is_(False),
+                    )
+                    .values(is_processed=True)
+                )
             for warning in post.warnings:
                 publication.warn(f"WordPress: {warning}")
             return True

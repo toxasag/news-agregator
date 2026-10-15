@@ -626,7 +626,7 @@ async def test_the_cover_upload_carries_the_seo_metadata(
 
     assert upload["article_title"] == DRAFT["title"]
     assert upload["keywords"] == DRAFT["seo_keywords"]
-    assert upload["caption"] == DRAFT["seo_description"]
+    assert "СводкаПресс (нейросеть)" in upload["caption"]
 
 
 async def test_all_unique_usable_photos_are_processed(
@@ -932,10 +932,80 @@ async def test_find_duplicate_article_lexical_stem_match() -> None:
     cluster = build_cluster(title="Учения Центр-2026: маневры армии")
     post = build_post()
 
-    dup_art, reason = await content_worker._find_duplicate_article(
+    dup_art, reason, is_followup = await content_worker._find_duplicate_article(
         session.as_session(), cluster, [post]
     )
     assert dup_art is not None
     assert dup_art.id == 101
     assert "lexical stem match" in reason
+    # Since created_at is recent (< 2 hours), is_followup must be False
+    assert is_followup is False
+
+
+async def test_find_duplicate_article_followup_topic_evolution() -> None:
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    # Article published 3 hours ago
+    old_time = datetime.now(UTC) - timedelta(hours=3)
+    art = Article(
+        id=202,
+        title="Учения Центр-2026: масштаб и дроны",
+        content_html="<p>Текст</p>",
+        created_at=old_time,
+        published_at=old_time,
+        url_slug="ucheniya-tsentr-2026-masshtab-i-drony-1234",
+        category="armiya-i-opk",
+    )
+    session = FakeSession([(art,)])
+
+    # New cluster with substantial new developments (consequences, statistics)
+    cluster = build_cluster(
+        title="Итоги учений Центр-2026: разгром условного противника и заявления",
+        category="armiya-i-opk",
+    )
+    post = build_post(
+        text="Генштаб подвел официальные итоги масштабных маневров Центр-2026 в Сибири."
+    )
+
+    dup_art, _reason, is_followup = await content_worker._find_duplicate_article(
+        session.as_session(), cluster, [post]
+    )
+    assert dup_art is not None
+    assert dup_art.id == 202
+    assert is_followup is True
+
+
+async def test_enrich_and_decorate_draft_injects_followup_backlink() -> None:
+    cluster = build_cluster(
+        title="Развитие ситуации в Омске: новые последствия",
+        category="proisshestviya",
+    )
+    cluster.enrichment_data = {
+        "parent_article": {
+            "id": 55,
+            "title": "Взрыв на заводе в Омске: первые подробности",
+            "url_slug": "vzryv-na-zavode-v-omske-pervye-podrobnosti-abcd",
+            "category": "proisshestviya",
+        }
+    }
+    reviewed = {
+        "title": "Развитие ситуации в Омске: новые последствия",
+        "content_html": "<p>Спасатели локализовали возгорание на объекте.</p>",
+        "category_slug": "proisshestviya",
+    }
+    session = FakeSession([])
+
+    await content_worker._enrich_and_decorate_draft(
+        session.as_session(), cluster, [build_post()], reviewed
+    )
+
+    content = reviewed["content_html"]
+    assert "svodka-followup" in content
+    assert "Ранее по теме:" in content
+    expected_link = (
+        "https://svodka.press/proisshestviya/"
+        "vzryv-na-zavode-v-omske-pervye-podrobnosti-abcd/"
+    )
+    assert expected_link in content
+    assert "Взрыв на заводе в Омске: первые подробности" in content
 

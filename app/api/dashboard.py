@@ -319,9 +319,19 @@ async def _pipeline_stats(session: AsyncSession) -> dict[str, Any]:
     cluster_total = await session.scalar(select(func.count()).select_from(NewsCluster))
     article_total = await session.scalar(select(func.count()).select_from(Article))
     source_total = await session.scalar(select(func.count()).select_from(Source))
-    unprocessed = await session.scalar(
-        select(func.count()).select_from(RawNews).where(RawNews.is_processed.is_(False))
+    unprocessed_stmt = (
+        select(func.count(RawNews.id))
+        .select_from(RawNews)
+        .outerjoin(NewsCluster, RawNews.cluster_id == NewsCluster.id)
+        .where(
+            RawNews.is_processed.is_(False),
+            or_(
+                RawNews.cluster_id.is_(None),
+                NewsCluster.is_published.is_(False),
+            ),
+        )
     )
+    unprocessed = await session.scalar(unprocessed_stmt)
     return {
         "raw_news_total": int(raw_total or 0),
         "raw_news_unprocessed": int(unprocessed or 0),

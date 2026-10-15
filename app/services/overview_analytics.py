@@ -233,16 +233,19 @@ async def _load_summary_cards(session: AsyncSession) -> dict[str, Any]:
     sources_total = int(
         (await session.scalar(select(func.count()).select_from(Source))) or 0
     )
-    unprocessed = int(
-        (
-            await session.scalar(
-                select(func.count())
-                .select_from(RawNews)
-                .where(RawNews.is_processed.is_(False))
-            )
+    unprocessed_stmt = (
+        select(func.count(RawNews.id))
+        .select_from(RawNews)
+        .outerjoin(NewsCluster, RawNews.cluster_id == NewsCluster.id)
+        .where(
+            RawNews.is_processed.is_(False),
+            or_(
+                RawNews.cluster_id.is_(None),
+                NewsCluster.is_published.is_(False),
+            ),
         )
-        or 0
     )
+    unprocessed = int((await session.scalar(unprocessed_stmt)) or 0)
     try:
         articles_published_total = int(
             (
@@ -294,16 +297,20 @@ async def _load_daily_timeline(
         raw_sql = text(
             """
             SELECT
-                date(created_at) as day,
+                date(r.created_at) as day,
                 count(*) as total,
-                count(*) FILTER (WHERE dedup_status IN (
+                count(*) FILTER (WHERE r.dedup_status IN (
                     'duplicate', 'skipped_duplicate', 'filtered_digest', 'filtered_ad'
                 )) as filtered_dups,
-                count(*) FILTER (WHERE dedup_status = 'unique') as unique_posts,
-                count(*) FILTER (WHERE is_processed = false) as unprocessed
-            FROM raw_news
-            WHERE created_at >= :start_ts
-            GROUP BY date(created_at)
+                count(*) FILTER (WHERE r.dedup_status = 'unique') as unique_posts,
+                count(*) FILTER (
+                    WHERE r.is_processed = false
+                    AND (c.is_published = false OR c.id IS NULL)
+                ) as unprocessed
+            FROM raw_news r
+            LEFT JOIN news_clusters c ON r.cluster_id = c.id
+            WHERE r.created_at >= :start_ts
+            GROUP BY date(r.created_at)
             """
         )
         res = await session.execute(raw_sql, {"start_ts": start_ts})

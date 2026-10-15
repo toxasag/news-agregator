@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SVODKA_SETKA_VERSION', '2.53.0' );
+define( 'SVODKA_SETKA_VERSION', '2.53.1' );
 define( 'SVODKA_TG_URL', 'https://t.me/svodka_press' );
 define( 'SVODKA_METRIKA_ID', 106439629 );
 
@@ -392,19 +392,34 @@ add_filter( 'the_content', 'svodka_setka_repair_featured_figure', 8 );
 
 /**
  * Unwrap <p><script type="application/ld+json">...</script></p> produced by wpautop
- * so Google and Yandex structured-data validators parse clean NewsArticle JSON-LD.
+ * and strip legacy aggregateRating blocks from NewsArticle JSON-LD so Google
+ * and Yandex structured-data validators parse clean NewsArticle without
+ * "Invalid object type for field <parent_node>" Review Snippet errors.
  */
-function svodka_setka_unwrap_json_ld( $content ) {
+function svodka_setka_unwrap_and_clean_json_ld( $content ) {
 	if ( false === strpos( $content, 'application/ld+json' ) ) {
 		return $content;
 	}
-	return preg_replace(
+
+	// 1. Unwrap <p><script...>...</script></p>
+	$content = preg_replace(
 		'#<p>\s*(<script\b[^>]*type=["\']application/ld\+json["\'][^>]*>.*?</script>)\s*</p>#is',
 		'$1',
 		$content
 	);
+
+	// 2. Strip legacy aggregateRating from NewsArticle JSON-LD
+	if ( false !== strpos( $content, 'aggregateRating' ) ) {
+		$content = preg_replace(
+			'#,\s*"aggregateRating"\s*:\s*\{[^}]*\}#is',
+			'',
+			$content
+		);
+	}
+
+	return $content;
 }
-add_filter( 'the_content', 'svodka_setka_unwrap_json_ld', 99 );
+add_filter( 'the_content', 'svodka_setka_unwrap_and_clean_json_ld', 99 );
 
 /**
  * Known media outlet name -> canonical URL dictionary for linkifying plain-text sources.
